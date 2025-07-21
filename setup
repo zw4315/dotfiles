@@ -1,59 +1,81 @@
 #!/bin/bash
-
 set -e
 
-# Determine DOTFILES path
+### === 1. 设定 dotfiles 路径 === ###
 if [ -z "$1" ]; then
-    DOTFILES="$HOME/.dotfiles"
+    if [ -z "${BASH_SOURCE[0]}" ]; then
+        DOTFILES="$HOME/.dotfiles"
+    else
+        SCRIPT_PATH="${BASH_SOURCE[0]}"
+        while [ -h "$SCRIPT_PATH" ]; do
+            SCRIPT_PATH=$(readlink "$SCRIPT_PATH")
+        done
+        cd "$(dirname "$SCRIPT_PATH")"
+        DOTFILES=$(pwd)
+    fi
 else
     DOTFILES="$1"
 fi
 
-echo "Installing dotfiles into $DOTFILES"
+echo "👉 Installing dotfiles from: $DOTFILES"
 
-# Clone if not already present
-if [ ! -d "$DOTFILES" ]; then
-    git clone https://github.com/yourname/dotfiles "$DOTFILES"
-fi
-
-# Create symlink to ~/.vimrc
+### === 2. 创建软链接函数 === ###
 link() {
-    TARGET="$HOME/.$1"
-    SOURCE="$DOTFILES/files/$1"
+    NAME="$1"
+    TARGET="$HOME/.$NAME"
+    SOURCE="$DOTFILES/files/$NAME"
+
+    if [ ! -f "$SOURCE" ]; then
+        echo "❌ $SOURCE does not exist. Skipping."
+        return
+    fi
 
     if [ -h "$TARGET" ]; then
-        if [ "$(readlink $TARGET)" != "$SOURCE" ]; then
+        if [ "$(readlink "$TARGET")" != "$SOURCE" ]; then
             mv "$TARGET" "$TARGET.old"
+            echo "🔁 Existing symlink replaced and backed up: $TARGET -> $TARGET.old"
         else
+            echo "✅ $TARGET already linked. Skipping."
             return
         fi
     elif [ -e "$TARGET" ]; then
         mv "$TARGET" "$TARGET.old"
+        echo "📦 Existing file backed up: $TARGET -> $TARGET.old"
     fi
 
     ln -s "$SOURCE" "$TARGET"
-    echo "Linked $TARGET -> $SOURCE"
+    echo "🔗 Linked $TARGET -> $SOURCE"
 }
 
-# Install vim-plug
+### === 3. 遍历 files 目录 === ###
+linkall() {
+    for f in "$DOTFILES"/files/*; do
+        link "$(basename "$f")"
+    done
+    echo "✅ All dotfiles linked."
+}
+
+### === 4. 安装 vim-plug 插件管理器 === ###
 install_vim_plug() {
     if [ ! -f ~/.vim/autoload/plug.vim ]; then
-        echo "Installing vim-plug..."
+        echo "⬇️ Installing vim-plug..."
         curl -fLo ~/.vim/autoload/plug.vim --create-dirs \
              https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+    else
+        echo "✅ vim-plug already installed."
     fi
 }
 
-# Install Vim plugins
+### === 5. 安装插件 === ###
 install_plugins() {
-    echo "Installing Vim plugins..."
+    echo "🔧 Installing Vim plugins..."
     vim +PlugInstall +qall
 }
 
-# Main
-link vimrc
+### === 6. 执行流程 === ###
+linkall
 install_vim_plug
 install_plugins
 
-echo "✅ Vim config installed successfully!"
+echo "🎉 Setup complete!"
 
