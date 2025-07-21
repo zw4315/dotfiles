@@ -1,0 +1,59 @@
+#!/bin/bash
+
+set -e
+
+# Determine DOTFILES path
+if [ -z "$1" ]; then
+    DOTFILES="$HOME/.dotfiles"
+else
+    DOTFILES="$1"
+fi
+
+echo "Installing dotfiles into $DOTFILES"
+
+# Clone if not already present
+if [ ! -d "$DOTFILES" ]; then
+    git clone https://github.com/yourname/dotfiles "$DOTFILES"
+fi
+
+# Create symlink to ~/.vimrc
+link() {
+    TARGET="$HOME/.$1"
+    SOURCE="$DOTFILES/files/$1"
+
+    if [ -h "$TARGET" ]; then
+        if [ "$(readlink $TARGET)" != "$SOURCE" ]; then
+            mv "$TARGET" "$TARGET.old"
+        else
+            return
+        fi
+    elif [ -e "$TARGET" ]; then
+        mv "$TARGET" "$TARGET.old"
+    fi
+
+    ln -s "$SOURCE" "$TARGET"
+    echo "Linked $TARGET -> $SOURCE"
+}
+
+# Install vim-plug
+install_vim_plug() {
+    if [ ! -f ~/.vim/autoload/plug.vim ]; then
+        echo "Installing vim-plug..."
+        curl -fLo ~/.vim/autoload/plug.vim --create-dirs \
+             https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+    fi
+}
+
+# Install Vim plugins
+install_plugins() {
+    echo "Installing Vim plugins..."
+    vim +PlugInstall +qall
+}
+
+# Main
+link vimrc
+install_vim_plug
+install_plugins
+
+echo "✅ Vim config installed successfully!"
+
