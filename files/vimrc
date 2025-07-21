@@ -56,8 +56,7 @@ colorscheme onedark
 nnoremap <C-n> :NERDTreeToggle<CR>
 nnoremap <Leader>n :NERDTreeFind<CR>
 nnoremap <silent> <C-p> :Files<CR>
-
-
+nnoremap <Space>e :e ./<C-d>
 " toggle 最大化当前窗口
 nnoremap <silent> <leader>m :MaximizerToggle<CR>
 nnoremap <silent> <Leader>= :set nowinfixwidth<Bar>wincmd =<CR>
