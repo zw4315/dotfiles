@@ -37,6 +37,12 @@ Plug 'joshdick/onedark.vim'
 Plug 'tpope/vim-surround'
 Plug 'szw/vim-maximizer'
 
+" status bar
+Plug 'vim-airline/vim-airline'
+Plug 'vim-airline/vim-airline-themes'  " 可选：用于美化主题
+
+" add comment
+Plug 'tpope/vim-commentary'
 call plug#end()
 
 " ------------------------------
@@ -60,6 +66,14 @@ nnoremap <Space>e :e ./<C-d>
 " toggle 最大化当前窗口
 nnoremap <silent> <leader>m :MaximizerToggle<CR>
 nnoremap <silent> <Leader>= :set nowinfixwidth<Bar>wincmd =<CR>
+
+" ------------------------------
+" 用 rg 进行匹配
+" ------------------------------
+command! -bang -nargs=* Rg call fzf#vim#grep(
+      \ 'rg --column --line-number --no-heading --color=always --smart-case --hidden --with-filename --glob "!{.git,node_modules}/*" '.shellescape(<q-args>), 1,
+      \ fzf#vim#with_preview(), <bang>0)
+
 
 " cscope
 if has("cscope")
