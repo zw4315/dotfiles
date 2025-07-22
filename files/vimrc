@@ -43,6 +43,9 @@ Plug 'vim-airline/vim-airline-themes'  " 可选：用于美化主题
 
 " add comment
 Plug 'tpope/vim-commentary'
+
+" Bookmark
+Plug 'MattesGroeger/vim-bookmarks'
 call plug#end()
 
 " ------------------------------
