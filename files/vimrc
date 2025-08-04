@@ -4,7 +4,7 @@
 set nocompatible
 set number
 set relativenumber
-set autochdir
+" set autochdir
 set hlsearch
 set wildmenu
 set wildmode=longest:full,full
@@ -31,6 +31,9 @@ call plug#begin('~/.vim/plugged')
 " 适配 gtags 的插件 
 Plug 'ludovicchabant/vim-gutentags'
 Plug 'skywind3000/gutentags_plus'
+Plug 'tpope/vim-fugitive'
+Plug 'tpope/vim-abolish'
+
 
 " 文件导航与快速编辑
 Plug 'preservim/nerdtree'              " 文件树
@@ -59,6 +62,8 @@ Plug 'tpope/vim-commentary'
 Plug 'MattesGroeger/vim-bookmarks'
 call plug#end()
 
+" 用 bat 替换 cat
+let $BAT_THEME = 'TwoDark'
 " 设置 cache 目录（可选）
 let g:gutentags_cache_dir = expand('~/.cache/tags')
 
@@ -71,6 +76,84 @@ let g:gutentags_project_root = ['.root']
 " 关闭自动跳转目录（如果你不想 gutentags_plus 自动 lcd）
 let g:gutentags_plus_switch = 1
 
+" 切换头文件，源文件
+function! SwitchSourceHeader()
+  let l:ext = expand('%:e')
+  if l:ext ==# 'h'
+    let l:file = expand('%:r') . '.cpp'
+    if filereadable(l:file)
+      execute 'edit ' . l:file
+    else
+      let l:file = expand('%:r') . '.c'
+      if filereadable(l:file)
+        execute 'edit ' . l:file
+      else
+        echo "No corresponding source file"
+      endif
+    endif
+  elseif l:ext ==# 'cpp' || l:ext ==# 'c'
+    let l:file = expand('%:r') . '.h'
+    if filereadable(l:file)
+      execute 'edit ' . l:file
+    else
+      echo "No corresponding header file"
+    endif
+  else
+    echo "Not a source or header file"
+  endif
+endfunction
+
+nnoremap <Leader>sh :call SwitchSourceHeader()<CR>
+nnoremap <Leader>yp :let @" = expand('%:p')<CR>
+nnoremap <Leader>yf :let @" = expand('%:t')<CR>
+nnoremap <Leader>tc g~iw
+
+" 定义主函数（支持多文件、跨大小写、精准定位）
+function! FzfSmartReplace()
+    let l:target = input('< 搜索词: ', expand('<cword>'))
+    if empty(l:target) | return | endif
+
+    let l:replace = input('  替换为: ', l:target)
+    if l:replace ==# l:target | echo "未修改" | return | endif
+
+    " 用 rg 搜索（显示行号、列号、忽略大小写）
+    let l:rg_cmd = 'rg --vimgrep --no-heading --smart-case ' . shellescape(l:target)
+    call fzf#vim#grep(l:rg_cmd, 1, {
+        \ 'options': ['--multi', '--preview', 'bat --color=always --style=numbers --highlight-line {2} {1}'],
+        \ 'sink*': function('s:ReplaceInFiles', [l:target, l:replace])
+        \ })
+endfunction
+
+" 替换执行函数（自动处理大小写/列号/错误）
+function! s:ReplaceInFiles(target, replace, selected)
+    for item in a:selected
+        let parts = split(item, ':')
+        if len(parts) < 4 | continue | endif
+
+        let file = parts[0]
+        let lnum = parts[1]
+        let col = parts[2]
+
+        " 安全打开文件并定位
+        silent! execute 'keepalt edit ' . fnameescape(file)
+        call cursor(lnum, col)
+
+        " 调试信息（可通过 :messages 查看）
+        echom "替换检查: [" . expand('<cword>') . "] -> " . a:replace
+
+        " 执行替换（忽略大小写、严格转义、交互确认）
+        let pattern = '\c\<' . escape(a:target, '/\') . '\>'  " \<\> 匹配完整单词
+        try
+            execute 's/' . pattern . '/' . escape(a:replace, '/\') . '/gc'
+            write  " 保存更改
+        catch /E486/
+            echohl ErrorMsg | echo "未找到 '" . a:target . "' 在 " . file | echohl None
+        endtry
+    endfor
+endfunction
+
+" 快捷键映射
+nnoremap <leader>fr :call FzfSmartReplace()<CR>
 " autocmd BufReadPost *.c,*.cpp,*.h,*.py call GtagsProjectReload()
 " ------------------------------
 " 启用插件、语法、配色
