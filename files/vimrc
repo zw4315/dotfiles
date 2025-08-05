@@ -66,11 +66,12 @@ Plug 'tpope/vim-commentary'
 Plug 'MattesGroeger/vim-bookmarks'
 call plug#end()
 
+
 " 设置忽略中间文件
 let $FZF_DEFAULT_COMMAND = 'rg --files --hidden --glob "!.git/*"'
 
 " 用 bat 替换 cat
-let $BAT_THEME = 'TwoDark'
+" let $BAT_THEME = 'TwoDark'
 " 设置 cache 目录（可选）
 let g:gutentags_cache_dir = expand('~/.cache/tags')
 
@@ -124,9 +125,9 @@ function! FzfSmartReplace()
     if l:replace ==# l:target | echo "未修改" | return | endif
 
     " 用 rg 搜索（显示行号、列号、忽略大小写）
-    let l:rg_cmd = 'rg --vimgrep --no-heading --smart-case ' . shellescape(l:target)
+    let l:rg_cmd = 'rg --vimgrep --no-heading --case-sensitive --pcre2 ' . shellescape('(?<!\w)' . l:target . '(?!\w)')
     call fzf#vim#grep(l:rg_cmd, 1, {
-        \ 'options': ['--multi', '--preview', 'bat --color=always --style=numbers --highlight-line {2} {1}'],
+        \ 'options': ['--multi', '--preview', 'bat --theme=base16-256 --color=always --style=numbers --highlight-line {2} {1}'],
         \ 'sink*': function('s:ReplaceInFiles', [l:target, l:replace])
         \ })
 endfunction
@@ -135,10 +136,12 @@ endfunction
 function! s:ReplaceInFiles(target, replace, selected)
     let l:replace_all = 0
     for item in a:selected
-        let parts = split(item, ':')
-        if len(parts) < 4 | continue | endif
+        " 使用正则拆解路径:行:列:内容，避免路径中含 : 被误 split
+        let match = matchlist(item, '\v^(.+):(\d+):(\d+):(.*)$')
+        if len(match) < 5 | continue | endif
+        let parts = [match[1], match[2], match[3], match[4]]
+        let file = parts[0]
 
-        let file = fnameescape(parts[0])
         if !filereadable(file) || !filewritable(file)
             echohl WarningMsg | echo "跳过不可写文件: " . file | echohl None
             continue
@@ -203,9 +206,46 @@ nnoremap <silent> <Leader>= :set nowinfixwidth<Bar>wincmd =<CR>
 " ------------------------------
 " 用 rg 进行匹配
 " ------------------------------
+" 1. Rg：智能大小写匹配
 command! -bang -nargs=* Rg call fzf#vim#grep(
-      \ 'rg --column --line-number --no-heading --color=always --smart-case --hidden --with-filename --glob "!{.git,node_modules}/*" '.shellescape(<q-args>), 1,
-      \ fzf#vim#with_preview(), <bang>0)
+  \ 'rg --column --line-number --no-heading --color=always --smart-case --hidden --with-filename --glob "!{.git,node_modules}/*" ' . shellescape(<q-args>),
+  \ 1,
+  \ fzf#vim#with_preview({
+  \   'options': '--preview "bat --style=numbers,changes --color=always --highlight-line {2} --theme=base16-256 {1}"'
+  \ }),
+  \ <bang>0
+  \ )
+
+" 2. RgExact：全词、大小写敏感匹配
+command! -nargs=1 -bang RgExact call fzf#vim#grep(
+  \ 'rg --column --line-number --no-heading --color=always --hidden --with-filename --pcre2 --case-sensitive --glob "!{.git,node_modules}/*" ' .
+  \ shellescape('(?<!\w)' . <q-args> . '(?!\w)'),
+  \ 1,
+  \ fzf#vim#with_preview({
+  \   'options': '--preview "bat --style=numbers,changes --color=always --highlight-line {2} --theme=base16-256 {1}"'
+  \ }),
+  \ <bang>0
+  \ )
+
+" 3. Rgc：普通匹配，强制大小写敏感
+command! -nargs=* -bang Rgc call fzf#vim#grep(
+  \ 'rg --column --line-number --no-heading --color=always --hidden --with-filename --case-sensitive --glob "!{.git,node_modules}/*" ' .
+  \ shellescape(<q-args>),
+  \ 1,
+  \ fzf#vim#with_preview({
+  \   'options': '--preview "bat --style=numbers,changes --color=always --highlight-line {2} --theme=base16-256 {1}"'
+  \ }),
+  \ <bang>0
+  \ )
+
+command! -nargs=? Rgf call fzf#vim#grep(
+  \ 'rg --vimgrep --no-heading --color=always --pcre2 --case-sensitive ' . shellescape(len(<q-args>) > 0 ? <q-args> : expand('<cword>')) . ' ' . expand('%:p'),
+  \ 1,
+  \ {
+  \   'options': ['--preview', 'bat --color=always --style=numbers --theme=base16-256 --highlight-line {2} {1}'],
+  \   'down': '40%'
+  \ }
+\ )
 
 
 nmap <F8> :TagbarToggle<CR>  " 按 F8 切换 Tagbar
@@ -213,3 +253,4 @@ nmap <F8> :TagbarToggle<CR>  " 按 F8 切换 Tagbar
 
 " 或者，保存时自动执行：
 autocmd BufWritePre *.cpp,*.h,*.cc :%!clang-format
+
