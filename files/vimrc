@@ -31,9 +31,13 @@ call plug#begin('~/.vim/plugged')
 " 适配 gtags 的插件 
 Plug 'ludovicchabant/vim-gutentags'
 Plug 'skywind3000/gutentags_plus'
-Plug 'tpope/vim-fugitive'
-Plug 'tpope/vim-abolish'
 
+" Git
+Plug 'tpope/vim-fugitive'
+
+" markdown table
+Plug 'dhruvasagar/vim-table-mode'
+Plug 'godlygeek/tabular'
 
 " 文件导航与快速编辑
 Plug 'preservim/nerdtree'              " 文件树
@@ -61,6 +65,9 @@ Plug 'tpope/vim-commentary'
 " Bookmark
 Plug 'MattesGroeger/vim-bookmarks'
 call plug#end()
+
+" 设置忽略中间文件
+let $FZF_DEFAULT_COMMAND = 'rg --files --hidden --glob "!.git/*"'
 
 " 用 bat 替换 cat
 let $BAT_THEME = 'TwoDark'
@@ -126,29 +133,45 @@ endfunction
 
 " 替换执行函数（自动处理大小写/列号/错误）
 function! s:ReplaceInFiles(target, replace, selected)
+    let l:replace_all = 0
     for item in a:selected
         let parts = split(item, ':')
         if len(parts) < 4 | continue | endif
 
-        let file = parts[0]
-        let lnum = parts[1]
-        let col = parts[2]
+        let file = fnameescape(parts[0])
+        if !filereadable(file) || !filewritable(file)
+            echohl WarningMsg | echo "跳过不可写文件: " . file | echohl None
+            continue
+        endif
 
-        " 安全打开文件并定位
-        silent! execute 'keepalt edit ' . fnameescape(file)
-        call cursor(lnum, col)
+        silent! execute 'keepalt edit ' . file
+        if &buftype ==# 'nofile' || !&modifiable
+            echohl WarningMsg | echo "跳过特殊缓冲区: " . file | echohl None
+            continue
+        endif
 
-        " 调试信息（可通过 :messages 查看）
-        echom "替换检查: [" . expand('<cword>') . "] -> " . a:replace
+        call cursor(parts[1], parts[2])
+        if l:replace_all
+            silent execute 's/\c\<' . escape(a:target, '/\') . '\>/' . a:replace . '/g'
+            write
+        else
+            echohl Question
+            echo "替换: " . expand('<cword>') . " -> " . a:replace . " (y/n/a/q)?"
+            echohl None
+            let choice = nr2char(getchar())
+            redraw
 
-        " 执行替换（忽略大小写、严格转义、交互确认）
-        let pattern = '\c\<' . escape(a:target, '/\') . '\>'  " \<\> 匹配完整单词
-        try
-            execute 's/' . pattern . '/' . escape(a:replace, '/\') . '/gc'
-            write  " 保存更改
-        catch /E486/
-            echohl ErrorMsg | echo "未找到 '" . a:target . "' 在 " . file | echohl None
-        endtry
+            if choice ==# 'a'
+                let l:replace_all = 1
+                silent execute 's/\c\<' . escape(a:target, '/\') . '\>/' . a:replace . '/g'
+                write
+            elseif choice ==# 'y'
+                silent execute 's/\c\<' . escape(a:target, '/\') . '\>/' . a:replace . '/'
+                write
+            elseif choice ==# 'q'
+                break
+            endif
+        endif
     endfor
 endfunction
 
