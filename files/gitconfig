@@ -1,0 +1,9 @@
+[user]
+	name = edward_wu
+	email = 765903826@qq.com
+[core]
+	quotepath = false
+	editor = vim
+[alias]
+	st = status
+	co = checkout
