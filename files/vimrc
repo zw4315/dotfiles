@@ -1,6 +1,7 @@
 " ------------------------------
 " 基础设置
 " ------------------------------
+let mapleader = "\\"
 set nocompatible
 set number
 set relativenumber
@@ -84,6 +85,9 @@ let g:gutentags_project_root = ['.root']
 " 关闭自动跳转目录（如果你不想 gutentags_plus 自动 lcd）
 let g:gutentags_plus_switch = 1
 
+" 设置调用 Rg 进行搜索替换的插件 
+let g:zw_rg_default_mappings = 1
+
 " 切换头文件，源文件
 function! SwitchSourceHeader()
     let l:ext = expand('%:e')
@@ -125,74 +129,6 @@ function! SwitchSourceHeader()
     endif
 endfunction
 
-nnoremap <Leader>sh :call SwitchSourceHeader()<CR>
-nnoremap <Leader>yp :let @" = expand('%:p')<CR>
-nnoremap <Leader>yf :let @" = expand('%:t')<CR>
-
-" 定义主函数（支持多文件、跨大小写、精准定位）
-function! FzfSmartReplace()
-    let l:target = input('< 搜索词: ', expand('<cword>'))
-    if empty(l:target) | return | endif
-
-    let l:replace = input('  替换为: ', l:target)
-    if l:replace ==# l:target | echo "未修改" | return | endif
-
-    " 用 rg 搜索（显示行号、列号、忽略大小写）
-    let l:rg_cmd = 'rg --vimgrep --no-heading --case-sensitive --pcre2 ' . shellescape('(?<!\w)' . l:target . '(?!\w)')
-    call fzf#vim#grep(l:rg_cmd, 1, {
-        \ 'options': ['--multi', '--preview', 'bat --theme=base16-256 --color=always --style=numbers --highlight-line {2} {1}'],
-        \ 'sink*': function('s:ReplaceInFiles', [l:target, l:replace])
-        \ })
-endfunction
-
-" 替换执行函数（自动处理大小写/列号/错误）
-function! s:ReplaceInFiles(target, replace, selected)
-    let l:replace_all = 0
-    for item in a:selected
-        " 使用正则拆解路径:行:列:内容，避免路径中含 : 被误 split
-        let match = matchlist(item, '\v^(.+):(\d+):(\d+):(.*)$')
-        if len(match) < 5 | continue | endif
-        let parts = [match[1], match[2], match[3], match[4]]
-        let file = parts[0]
-
-        if !filereadable(file) || !filewritable(file)
-            echohl WarningMsg | echo "跳过不可写文件: " . file | echohl None
-            continue
-        endif
-
-        silent! execute 'keepalt edit ' . file
-        if &buftype ==# 'nofile' || !&modifiable
-            echohl WarningMsg | echo "跳过特殊缓冲区: " . file | echohl None
-            continue
-        endif
-
-        call cursor(parts[1], parts[2])
-        if l:replace_all
-            silent execute 's/\c\<' . escape(a:target, '/\') . '\>/' . a:replace . '/g'
-            write
-        else
-            echohl Question
-            echo "替换: " . expand('<cword>') . " -> " . a:replace . " (y/n/a/q)?"
-            echohl None
-            let choice = nr2char(getchar())
-            redraw
-
-            if choice ==# 'a'
-                let l:replace_all = 1
-                silent execute 's/\c\<' . escape(a:target, '/\') . '\>/' . a:replace . '/g'
-                write
-            elseif choice ==# 'y'
-                silent execute 's/\c\<' . escape(a:target, '/\') . '\>/' . a:replace . '/'
-                write
-            elseif choice ==# 'q'
-                break
-            endif
-        endif
-    endfor
-endfunction
-
-" 快捷键映射
-nnoremap <leader>fr :call FzfSmartReplace()<CR>
 " ------------------------------
 " 启用插件、语法、配色
 " ------------------------------
@@ -211,57 +147,20 @@ nnoremap <C-n> :NERDTreeToggle<CR>
 nnoremap <Leader>n :NERDTreeFind<CR>
 nnoremap <silent> <C-p> :Files<CR>
 nnoremap <Space>e :e ./<C-d>
+
 " toggle 最大化当前窗口
 nnoremap <silent> <leader>m :MaximizerToggle<CR>
+nnoremap <Leader>sh :call SwitchSourceHeader()<CR>
+nnoremap <Leader>yp :let @" = expand('%:p')<CR>
+nnoremap <Leader>yf :let @" = expand('%:t')<CR>
+
+" 按 F8 切换 Tagbar
+nmap <F8> :TagbarToggle<CR> 
+
 
 " ------------------------------
-" 用 rg 进行匹配
+" 代码 静态检查工具
 " ------------------------------
-" 1. Rg：智能大小写匹配
-command! -bang -nargs=* Rg call fzf#vim#grep(
-  \ 'rg --column --line-number --no-heading --color=always --smart-case --hidden --with-filename --glob "!{.git,node_modules}/*" ' . shellescape(<q-args>),
-  \ 1,
-  \ fzf#vim#with_preview({
-  \   'options': '--preview "bat --style=numbers,changes --color=always --highlight-line {2} --theme=base16-256 {1}"'
-  \ }),
-  \ <bang>0
-  \ )
-
-" 2. RgExact：全词、大小写敏感匹配
-command! -nargs=1 -bang RgExact call fzf#vim#grep(
-  \ 'rg --column --line-number --no-heading --color=always --hidden --with-filename --pcre2 --case-sensitive --glob "!{.git,node_modules}/*" ' .
-  \ shellescape('(?<!\w)' . <q-args> . '(?!\w)'),
-  \ 1,
-  \ fzf#vim#with_preview({
-  \   'options': '--preview "bat --style=numbers,changes --color=always --highlight-line {2} --theme=base16-256 {1}"'
-  \ }),
-  \ <bang>0
-  \ )
-
-" 3. Rgc：普通匹配，强制大小写敏感
-command! -nargs=* -bang Rgc call fzf#vim#grep(
-  \ 'rg --column --line-number --no-heading --color=always --hidden --with-filename --case-sensitive --glob "!{.git,node_modules}/*" ' .
-  \ shellescape(<q-args>),
-  \ 1,
-  \ fzf#vim#with_preview({
-  \   'options': '--preview "bat --style=numbers,changes --color=always --highlight-line {2} --theme=base16-256 {1}"'
-  \ }),
-  \ <bang>0
-  \ )
-
-command! -nargs=1 Rgf call fzf#vim#grep(
-  \ 'rg --vimgrep --no-heading --color=always --pcre2 --case-sensitive ' . shellescape(<q-args>) . ' ' . shellescape(expand('%:p')),
-  \ 1,
-  \ {
-  \   'options': ['--preview', 'bat --color=always --style=numbers --theme=base16-256 --highlight-line {2} {1}'],
-  \   'down': '40%'
-  \ }
-\ )
-
-
-nmap <F8> :TagbarToggle<CR>  " 按 F8 切换 Tagbar
-
-
 " 或者，保存时自动执行：
 autocmd BufWritePre *.cpp,*.h,*.cc :%!clang-format
 

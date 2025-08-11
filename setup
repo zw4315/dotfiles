@@ -1,81 +1,68 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-### === 1. 设定 dotfiles 路径 === ###
-if [ -z "$1" ]; then
-    if [ -z "${BASH_SOURCE[0]}" ]; then
-        DOTFILES="$HOME/.dotfiles"
-    else
-        SCRIPT_PATH="${BASH_SOURCE[0]}"
-        while [ -h "$SCRIPT_PATH" ]; do
-            SCRIPT_PATH=$(readlink "$SCRIPT_PATH")
-        done
-        cd "$(dirname "$SCRIPT_PATH")"
-        DOTFILES=$(pwd)
-    fi
-else
-    DOTFILES="$1"
-fi
+# 1. 检测 dotfiles 目录
+DOTFILES="${DOTFILES:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+echo "Installing dotfiles from: $DOTFILES"
 
-echo "👉 Installing dotfiles from: $DOTFILES"
+# 2. 链接一个文件或目录（安全模式：不覆盖已有非软链）
+link_one() {
+    local src="$1"
+    local dst="$2"
 
-### === 2. 创建软链接函数 === ###
-link() {
-    NAME="$1"
-    TARGET="$HOME/.$NAME"
-    SOURCE="$DOTFILES/files/$NAME"
-
-    if [ ! -f "$SOURCE" ]; then
-        echo "❌ $SOURCE does not exist. Skipping."
+    # 如果已经是正确的软链，跳过
+    if [[ -L "$dst" && "$(readlink "$dst")" == "$src" ]]; then
+        echo "✅ $dst already linked"
         return
     fi
 
-    if [ -h "$TARGET" ]; then
-        if [ "$(readlink "$TARGET")" != "$SOURCE" ]; then
-            mv "$TARGET" "$TARGET.old"
-            echo "🔁 Existing symlink replaced and backed up: $TARGET -> $TARGET.old"
+    # 如果目标存在且不是软链，备份
+    if [[ -e "$dst" && ! -L "$dst" ]]; then
+        mv "$dst" "$dst.backup.$(date +%s)"
+        echo "💾 Backup $dst"
+    fi
+
+    ln -sfn "$src" "$dst"
+    echo "🔗 Linked $dst → $src"
+}
+
+# 3. 链接所有 dotfiles（保持结构）
+link_all() {
+    for path in "$DOTFILES/files"/*; do
+        local name
+        name="$(basename "$path")"
+
+        if [[ "$name" == "vim" ]]; then
+            # Vim 特殊处理，保留 ~/.vim/plugin
+            link_vim_preserve_plugins "$path" "$HOME/.vim"
         else
-            echo "✅ $TARGET already linked. Skipping."
-            return
+            link_one "$path" "$HOME/.$name"
         fi
-    elif [ -e "$TARGET" ]; then
-        mv "$TARGET" "$TARGET.old"
-        echo "📦 Existing file backed up: $TARGET -> $TARGET.old"
-    fi
-
-    ln -s "$SOURCE" "$TARGET"
-    echo "🔗 Linked $TARGET -> $SOURCE"
-}
-
-### === 3. 遍历 files 目录 === ###
-linkall() {
-    for f in "$DOTFILES"/files/*; do
-        link "$(basename "$f")"
     done
-    echo "✅ All dotfiles linked."
 }
 
-### === 4. 安装 vim-plug 插件管理器 === ###
-install_vim_plug() {
-    if [ ! -f ~/.vim/autoload/plug.vim ]; then
-        echo "⬇️ Installing vim-plug..."
-        curl -fLo ~/.vim/autoload/plug.vim --create-dirs \
-             https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
-    else
-        echo "✅ vim-plug already installed."
-    fi
+# 4. 保留 ~/.vim/plugin，只软链其他内容
+link_vim_preserve_plugins() {
+    local src_root="$1"
+    local dst_root="$2"
+
+    mkdir -p "$dst_root"
+
+    for sub in "$src_root"/*; do
+        local base
+        base="$(basename "$sub")"
+
+        if [[ "$base" == "plugin" ]]; then
+            # 跳过 plugin 目录，不覆盖现有插件
+            echo "⚠️ Skipping linking of $dst_root/plugin to preserve existing plugins"
+            continue
+        fi
+
+        link_one "$sub" "$dst_root/$base"
+    done
 }
 
-### === 5. 安装插件 === ###
-install_plugins() {
-    echo "🔧 Installing Vim plugins..."
-    vim +PlugInstall +qall
-}
-
-### === 6. 执行流程 === ###
-linkall
-install_vim_plug
-install_plugins
-
-echo "🎉 Setup complete!"
+# 5. 执行
+link_all
+echo "✅ All dotfiles linked."
 
