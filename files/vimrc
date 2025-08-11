@@ -86,35 +86,48 @@ let g:gutentags_plus_switch = 1
 
 " 切换头文件，源文件
 function! SwitchSourceHeader()
-  let l:ext = expand('%:e')
-  if l:ext ==# 'h'
-    let l:file = expand('%:r') . '.cpp'
-    if filereadable(l:file)
-      execute 'edit ' . l:file
-    else
-      let l:file = expand('%:r') . '.c'
-      if filereadable(l:file)
-        execute 'edit ' . l:file
-      else
-        echo "No corresponding source file"
-      endif
+    let l:ext = expand('%:e')
+    let l:newfile = ''
+
+    if l:ext ==# 'h'
+        let l:newfile = expand('%:r') . '.cpp'
+        if !filereadable(l:newfile)
+            let l:newfile = expand('%:r') . '.c'
+        endif
+        if !filereadable(l:newfile)
+            let l:newfile = ''
+        endif
+    elseif l:ext ==# 'cpp' || l:ext ==# 'c'
+        let l:newfile = expand('%:r') . '.h'
+        if !filereadable(l:newfile)
+            let l:newfile = ''
+        endif
     endif
-  elseif l:ext ==# 'cpp' || l:ext ==# 'c'
-    let l:file = expand('%:r') . '.h'
-    if filereadable(l:file)
-      execute 'edit ' . l:file
+
+    if l:newfile != ''
+        execute 'edit' l:newfile
     else
-      echo "No corresponding header file"
+        " 推测目标文件名
+        if l:ext ==# 'h'
+            let l:newfile = expand('%:r') . '.cpp'
+        elseif l:ext ==# 'cpp' || l:ext ==# 'c'
+            let l:newfile = expand('%:r') . '.h'
+        else
+            echo "Not a source or header file"
+            return
+        endif
+
+        " 询问是否新建
+        let l:ans = confirm("File not found. Create " . l:newfile . " ?", "&Yes\n&No", 2)
+        if l:ans == 1
+            execute 'edit' l:newfile
+        endif
     endif
-  else
-    echo "Not a source or header file"
-  endif
 endfunction
 
 nnoremap <Leader>sh :call SwitchSourceHeader()<CR>
 nnoremap <Leader>yp :let @" = expand('%:p')<CR>
 nnoremap <Leader>yf :let @" = expand('%:t')<CR>
-nnoremap <Leader>tc g~iw
 
 " 定义主函数（支持多文件、跨大小写、精准定位）
 function! FzfSmartReplace()
@@ -180,7 +193,6 @@ endfunction
 
 " 快捷键映射
 nnoremap <leader>fr :call FzfSmartReplace()<CR>
-" autocmd BufReadPost *.c,*.cpp,*.h,*.py call GtagsProjectReload()
 " ------------------------------
 " 启用插件、语法、配色
 " ------------------------------
@@ -201,7 +213,6 @@ nnoremap <silent> <C-p> :Files<CR>
 nnoremap <Space>e :e ./<C-d>
 " toggle 最大化当前窗口
 nnoremap <silent> <leader>m :MaximizerToggle<CR>
-nnoremap <silent> <Leader>= :set nowinfixwidth<Bar>wincmd =<CR>
 
 " ------------------------------
 " 用 rg 进行匹配
@@ -238,8 +249,8 @@ command! -nargs=* -bang Rgc call fzf#vim#grep(
   \ <bang>0
   \ )
 
-command! -nargs=? Rgf call fzf#vim#grep(
-  \ 'rg --vimgrep --no-heading --color=always --pcre2 --case-sensitive ' . shellescape(len(<q-args>) > 0 ? <q-args> : expand('<cword>')) . ' ' . expand('%:p'),
+command! -nargs=1 Rgf call fzf#vim#grep(
+  \ 'rg --vimgrep --no-heading --color=always --pcre2 --case-sensitive ' . shellescape(<q-args>) . ' ' . shellescape(expand('%:p')),
   \ 1,
   \ {
   \   'options': ['--preview', 'bat --color=always --style=numbers --theme=base16-256 --highlight-line {2} {1}'],
