@@ -126,8 +126,8 @@ PROXY_PORT="8888"
 MY_PUBLIC_IP=$(curl -s ifconfig.me)
 
 if [ "$MY_PUBLIC_IP" != "$PROXY_IP" ]; then
-    export http_proxy="http://$PROXY_IP:$PROXY_PORT"
-    export https_proxy="http://$PROXY_IP:$PROXY_PORT"
+    #export http_proxy="http://$PROXY_IP:$PROXY_PORT"
+    #export https_proxy="http://$PROXY_IP:$PROXY_PORT"
 else
     echo "跳过代理设置：代理 IP 与本机公网 IP 相同"
 fi
