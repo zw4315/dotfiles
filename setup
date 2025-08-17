@@ -64,7 +64,8 @@ link_vim_preserve_plugins() {
 
 # 5. 执行
 sudo apt install ripgrep
-sudo apt install global ctags cscope
+sudo apt install universal-ctags
+sudo apt install global cscope
 sudo apt install python3-pygments
 link_all
 echo "✅ All dotfiles linked."
