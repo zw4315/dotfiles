@@ -88,6 +88,10 @@ let g:gutentags_plus_switch = 1
 " 设置调用 Rg 进行搜索替换的插件 
 let g:zw_rg_default_mappings = 1
 
+" 书签的设置
+let g:bookmark_sign = '♥'
+let g:bookmark_highlight_lines = 1
+
 " ------------------------------
 " 启用插件、语法、配色
 " ------------------------------
