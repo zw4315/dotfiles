@@ -63,6 +63,7 @@ link_vim_preserve_plugins() {
 }
 
 # 5. 执行
+sudo apt install clang-format -y
 sudo apt install ripgrep
 sudo apt install universal-ctags
 sudo apt install global cscope
