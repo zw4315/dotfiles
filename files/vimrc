@@ -45,6 +45,7 @@ Plug 'preservim/nerdtree'              " 文件树
 Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }  " 模糊搜索
 Plug 'junegunn/fzf.vim'
 Plug 'preservim/tagbar'
+Plug 'preservim/vim-markdown'
 
 " 语法增强
 Plug 'sheerun/vim-polyglot'            " 多语言语法支持（C++增强）
