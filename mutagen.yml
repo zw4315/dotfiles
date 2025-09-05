@@ -1,0 +1,13 @@
+sync:
+  defaults:
+    ignore:
+      vcs: true
+      paths:
+        - ".DS_Store"
+        - "node_modules"
+        - ".git"
+
+  dotfiles:                # 会话名 = dotfiles
+    alpha: "/Users/edwardwu/repo/dotfiles"
+    beta:  "ssh:edward@14.103.135.152/~/repo/dotfiles"
+    mode:  "one-way-replica"   # 本地为准，远端会被覆盖
