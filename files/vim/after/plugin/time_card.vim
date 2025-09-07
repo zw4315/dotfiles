@@ -56,13 +56,13 @@ function! s:MergeOnTitleRename(prev_key, cur_key) abort
   if !exists('b:cards') | return | endif
 
   let old = get(b:cards, a:prev_key, {})
-  let oldsec = float(get(old, 'seconds', 0.0))
+  let oldsec = (0.0 + get(old, 'seconds', 0.0))
   if oldsec <= 0.0 | return | endif
 
   let nowiso = timecard#util#iso(localtime())
   let new = get(b:cards, a:cur_key, {'title': a:cur_key, 'seconds': 0.0, 'created_at': nowiso, 'updated_at': nowiso})
 
-  let new.seconds = float(get(new, 'seconds', 0.0)) + oldsec
+  let new.seconds = (0.0 + get(new, 'seconds', 0.0)) + oldsec
   let old_created = get(old, 'created_at', nowiso)
   let new_created = get(new, 'created_at', nowiso)
   if old_created < new_created
@@ -137,7 +137,7 @@ function! s:LoadFromDisk() abort
       let nk = s:NormalizeDiskKey(k)
       let item = cards[k]
       if type(item) == type(0.0) || type(item) == type(0)
-        let sec = float(item)
+        let sec = (0.0 + item)
         let created = get(obj, 'updated_at', nowiso)
         let updated = get(obj, 'updated_at', created)
         let b:cards[nk] = {
@@ -147,7 +147,7 @@ function! s:LoadFromDisk() abort
               \ 'updated_at': updated,
               \ }
       elseif type(item) == type({})
-        let sec = float(get(item, 'seconds', 0.0))
+        let sec = (0.0 + get(item, 'seconds', 0.0))
         let created = get(item, 'created_at', nowiso)
         let updated = get(item, 'updated_at', created)
         let b:cards[nk] = {
@@ -207,7 +207,7 @@ function! s:SaveToDisk(force) abort
     if !has_key(c, 'updated_at') | let c.updated_at = nowiso | endif
     let b:cards[k] = c
 
-    let sec = float(get(c, 'seconds', 0.0))
+    let sec = (0.0 + get(c, 'seconds', 0.0))
     let cards[k] = {
           \ 'title': k,
           \ 'seconds': sec,
@@ -257,7 +257,7 @@ function! s:OnCardEdit() abort
   if b:card_last_key !=# '' && delta <= g:md_card_gap_sec
     let nowiso = timecard#util#iso(localtime())
     let c = get(b:cards, b:card_last_key, {'title': b:card_last_key, 'seconds': 0.0, 'created_at': nowiso, 'updated_at': nowiso})
-    let c.seconds = float(get(c, 'seconds', 0.0)) + delta
+    let c.seconds = (0.0 + get(c, 'seconds', 0.0)) + delta
     if !has_key(c, 'created_at') | let c.created_at = nowiso | endif
     let c.updated_at = nowiso
     let b:cards[b:card_last_key] = c
@@ -285,7 +285,7 @@ function! s:ReportHere() abort
     return
   endif
   let secs = get(get(b:, 'cards', {})->get(key, {}), 'seconds', 0.0)
-  echo printf('%s  %.1f min', key, float(secs) / 60.0)
+  echo printf('%s  %.1f min', key, (0.0 + secs) / 60.0)
 endfunction
 
 function! s:Reset() abort
