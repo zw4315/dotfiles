@@ -44,6 +44,34 @@ function! s:GetCurCardKey() abort
   return title
 endfunction
 
+" Read a JSON file safely; return {} on error
+" Import persisted cards object to in-memory map {title -> card object}
+function! s:ImportCards(obj) abort
+  let nowiso = timecard#util#iso(localtime())
+  let src = get(a:obj, 'cards', {})
+  let out = {}
+  if type(src) != type({})
+    return out
+  endif
+  for k in keys(src)
+    let nk = s:NormalizeDiskKey(k)
+    let item = src[k]
+    if type(item) == type(0.0) || type(item) == type(0)
+      let sec = (0.0 + item)
+      let created = get(a:obj, 'updated_at', nowiso)
+      let updated = get(a:obj, 'updated_at', created)
+    elseif type(item) == type({})
+      let sec = (0.0 + get(item, 'seconds', 0.0))
+      let created = get(item, 'created_at', nowiso)
+      let updated = get(item, 'updated_at', created)
+    else
+      continue
+    endif
+    let out[nk] = {'title': nk, 'seconds': sec, 'created_at': created, 'updated_at': updated}
+  endfor
+  return out
+endfunction
+
 " If the current edit is on a header and the title changed, move accumulated seconds
 function! s:MergeOnTitleRename(prev_key, cur_key) abort
   " Only treat as rename when editing a header and the title key changed
@@ -120,7 +148,7 @@ function! s:LoadFromDisk() abort
     if !exists('b:cards') | let b:cards = {} | endif
     return
   endif
-  let obj = s:ReadJson(meta.file)
+  let obj = timecard#util#read_json(meta.file)
   let b:cards = s:ImportCards(obj)
   let b:card_loaded_day = meta.day
   let b:card_dirty = 0

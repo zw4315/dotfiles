@@ -86,3 +86,11 @@ function! timecard#util#filename_allowed() abort
   endif
   return fname =~? kws
 endfunction
+
+function! timecard#util#read_json(path) abort
+  try
+    return json_decode(join(readfile(a:path), "\n"))
+  catch
+    return {}
+  endtry
+endfunction
