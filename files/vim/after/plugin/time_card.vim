@@ -46,23 +46,32 @@ endfunction
 
 " If the current edit is on a header and the title changed, move accumulated seconds
 function! s:MergeOnTitleRename(prev_key, cur_key) abort
-  " Fast path: only treat as rename when editing the header line itself
+  " Only treat as rename when editing a header and the title key changed
   if a:prev_key ==# '' || a:cur_key ==# '' || a:prev_key ==# a:cur_key
     return
   endif
   if getline('.') !~# '^\s*##\s\+'
     return
   endif
-  if !exists('b:card_seconds_by_key')
-    return
+  if !exists('b:cards') | return | endif
+
+  let old = get(b:cards, a:prev_key, {})
+  let oldsec = float(get(old, 'seconds', 0.0))
+  if oldsec <= 0.0 | return | endif
+
+  let nowiso = timecard#util#iso(localtime())
+  let new = get(b:cards, a:cur_key, {'title': a:cur_key, 'seconds': 0.0, 'created_at': nowiso, 'updated_at': nowiso})
+
+  let new.seconds = float(get(new, 'seconds', 0.0)) + oldsec
+  let old_created = get(old, 'created_at', nowiso)
+  let new_created = get(new, 'created_at', nowiso)
+  if old_created < new_created
+    let new.created_at = old_created
   endif
-  let oldsec = get(b:card_seconds_by_key, a:prev_key, 0.0)
-  if oldsec <= 0
-    return
-  endif
-  let tgt = get(b:card_seconds_by_key, a:cur_key, 0.0)
-  let b:card_seconds_by_key[a:cur_key] = tgt + oldsec
-  call remove(b:card_seconds_by_key, a:prev_key)
+  let new.updated_at = nowiso
+
+  let b:cards[a:cur_key] = new
+  call remove(b:cards, a:prev_key)
   let b:card_dirty = 1
 endfunction
 
@@ -108,6 +117,7 @@ function! s:LoadFromDisk() abort
   if !filereadable(meta.file)
     let b:card_loaded_day = meta.day
     let b:card_dirty = 0
+    if !exists('b:cards') | let b:cards = {} | endif
     return
   endif
   " Read the whole file and decode once for simplicity
@@ -116,14 +126,37 @@ function! s:LoadFromDisk() abort
   catch
     let b:card_loaded_day = meta.day
     let b:card_dirty = 0
+    if !exists('b:cards') | let b:cards = {} | endif
     return
   endtry
   let cards = get(obj, 'cards', {})
+  let nowiso = timecard#util#iso(localtime())
+  let b:cards = {}
   if type(cards) == type({})
-    let b:card_seconds_by_key = {}
     for k in keys(cards)
       let nk = s:NormalizeDiskKey(k)
-      let b:card_seconds_by_key[nk] = get(b:card_seconds_by_key, nk, 0.0) + cards[k]
+      let item = cards[k]
+      if type(item) == type(0.0) || type(item) == type(0)
+        let sec = float(item)
+        let created = get(obj, 'updated_at', nowiso)
+        let updated = get(obj, 'updated_at', created)
+        let b:cards[nk] = {
+              \ 'title': nk,
+              \ 'seconds': sec,
+              \ 'created_at': created,
+              \ 'updated_at': updated,
+              \ }
+      elseif type(item) == type({})
+        let sec = float(get(item, 'seconds', 0.0))
+        let created = get(item, 'created_at', nowiso)
+        let updated = get(item, 'updated_at', created)
+        let b:cards[nk] = {
+              \ 'title': nk,
+              \ 'seconds': sec,
+              \ 'created_at': created,
+              \ 'updated_at': updated,
+              \ }
+      endif
     endfor
   endif
   let b:card_loaded_day = meta.day
@@ -148,7 +181,7 @@ function! s:SaveToDisk(force) abort
     return
   endif
   let meta = s:BuildDiskMeta(abs)
-  if !exists('b:card_seconds_by_key') || empty(b:card_seconds_by_key)
+  if !exists('b:cards') || empty(b:cards)
     return
   endif
   if !get(b:, 'card_dirty', 0)
@@ -164,20 +197,32 @@ function! s:SaveToDisk(force) abort
     endif
   endif
   call timecard#util#ensure_dir(meta.dir)
+  let nowiso = timecard#util#iso(localtime())
   let cards = {}
   let tot = 0.0
-  for k in keys(b:card_seconds_by_key)
-    let sec = b:card_seconds_by_key[k]
-    let cards[k] = sec
+  for k in keys(b:cards)
+    let c = b:cards[k]
+    " Stabilize per-card timestamps: creation time should not change across saves
+    if !has_key(c, 'created_at') | let c.created_at = nowiso | endif
+    if !has_key(c, 'updated_at') | let c.updated_at = nowiso | endif
+    let b:cards[k] = c
+
+    let sec = float(get(c, 'seconds', 0.0))
+    let cards[k] = {
+          \ 'title': k,
+          \ 'seconds': sec,
+          \ 'created_at': c.created_at,
+          \ 'updated_at': c.updated_at,
+          \ }
     let tot += sec
   endfor
   let obj = {
-        \ 'version': 1,
+        \ 'version': 2,
         \ 'day': meta.day,
         \ 'task': meta.task,
         \ 'file_rel': meta.rel,
         \ 'gap_sec': g:md_card_gap_sec,
-        \ 'updated_at': timecard#util#iso(localtime()),
+        \ 'updated_at': nowiso,
         \ 'total': tot,
         \ 'cards': cards,
         \ }
@@ -194,8 +239,8 @@ function! s:SaveToDisk(force) abort
 endfunction
 
 function! s:OnCardEdit() abort
-  if !exists('b:card_seconds_by_key')
-    let b:card_seconds_by_key = {}
+  if !exists('b:cards')
+    let b:cards = {}
   endif
 
   " First change in this buffer/session: set baseline and card, don't count yet
@@ -210,8 +255,12 @@ function! s:OnCardEdit() abort
 
   " Accumulate into the previous card when within the allowed gap
   if b:card_last_key !=# '' && delta <= g:md_card_gap_sec
-    let prev = get(b:card_seconds_by_key, b:card_last_key, 0.0)
-    let b:card_seconds_by_key[b:card_last_key] = prev + delta
+    let nowiso = timecard#util#iso(localtime())
+    let c = get(b:cards, b:card_last_key, {'title': b:card_last_key, 'seconds': 0.0, 'created_at': nowiso, 'updated_at': nowiso})
+    let c.seconds = float(get(c, 'seconds', 0.0)) + delta
+    if !has_key(c, 'created_at') | let c.created_at = nowiso | endif
+    let c.updated_at = nowiso
+    let b:cards[b:card_last_key] = c
     let b:card_dirty = 1
   endif
 
@@ -235,12 +284,12 @@ function! s:ReportHere() abort
     echo 'Not inside a ## card'
     return
   endif
-  let secs = get(get(b:, 'card_seconds_by_key', {}), key, 0.0)
-  echo printf('%s  %.1f min', key, secs / 60.0)
+  let secs = get(get(b:, 'cards', {})->get(key, {}), 'seconds', 0.0)
+  echo printf('%s  %.1f min', key, float(secs) / 60.0)
 endfunction
 
 function! s:Reset() abort
-  unlet! b:card_seconds_by_key b:card_last_time b:card_last_key b:card_dirty
+  unlet! b:cards b:card_last_time b:card_last_key b:card_dirty
   echo 'timecard: timers reset'
 endfunction
 
@@ -248,8 +297,8 @@ function! s:SetupBuffer() abort
   if !timecard#util#filename_allowed()
     return
   endif
-  if !exists('b:card_seconds_by_key')
-    let b:card_seconds_by_key = {}
+  if !exists('b:cards')
+    let b:cards = {}
   endif
   if !exists('b:card_dirty')
     let b:card_dirty = 0
