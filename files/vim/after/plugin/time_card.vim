@@ -45,7 +45,7 @@ function! s:GetCurCardKey() abort
 endfunction
 
 " If the current edit is on a header and the title changed, move accumulated seconds
-function! s:MaybeRenameCard(prev_key, cur_key) abort
+function! s:MergeOnTitleRename(prev_key, cur_key) abort
   if a:prev_key ==# a:cur_key
     return
   endif
@@ -109,18 +109,13 @@ function! s:LoadFromDisk() abort
     let b:card_dirty = 0
     return
   endif
-  " Prefer single-line fast path; fallback to reading all lines
+  " Read the whole file and decode once for simplicity
   try
-    let line1 = get(readfile(meta.file, '', 1), 0, '')
-    let obj = json_decode(line1)
+    let obj = json_decode(join(readfile(meta.file), "\n"))
   catch
-    try
-      let obj = json_decode(join(readfile(meta.file), "\n"))
-    catch
-      let b:card_loaded_day = meta.day
-      let b:card_dirty = 0
-      return
-    endtry
+    let b:card_loaded_day = meta.day
+    let b:card_dirty = 0
+    return
   endtry
   let cards = get(obj, 'cards', {})
   if type(cards) == type({})
@@ -144,6 +139,11 @@ endfunction
 
 " Store current buffer's card-time snapshot for today (throttled or forced)
 function! s:SaveToDisk(force) abort
+  let abs = expand('%:p')
+  if abs ==# ''
+    return
+  endif
+  let meta = s:BuildDiskMeta(abs)
   if !exists('b:card_seconds_by_key') || empty(b:card_seconds_by_key)
     return
   endif
@@ -159,12 +159,6 @@ function! s:SaveToDisk(force) abort
       return
     endif
   endif
-
-  let abs = expand('%:p')
-  if abs ==# ''
-    return
-  endif
-  let meta = s:BuildDiskMeta(abs)
   call timecard#util#ensure_dir(meta.dir)
   let cards = {}
   let tot = 0.0
@@ -217,7 +211,7 @@ function! s:OnCardEdit() abort
     let b:card_dirty = 1
   endif
 
-  call s:MaybeRenameCard(b:card_last_key, card_cur_key)
+  call s:MergeOnTitleRename(b:card_last_key, card_cur_key)
 
   " Flush immediately when switching cards if enabled
   if g:md_card_flush_on_switch && card_cur_key !=# b:card_last_key && get(b:, 'card_dirty', 0)
@@ -247,11 +241,9 @@ function! s:Reset() abort
 endfunction
 
 function! s:SetupBuffer() abort
-  " Only enable for markdown buffers whose filename matches configured keywords
   if !timecard#util#filename_allowed()
     return
   endif
-  let b:card_enabled = 1
   if !exists('b:card_seconds_by_key')
     let b:card_seconds_by_key = {}
   endif
@@ -262,23 +254,14 @@ function! s:SetupBuffer() abort
     autocmd! * <buffer>
     autocmd TextChanged  <buffer> call s:OnCardEdit()
     autocmd TextChangedI <buffer> call s:OnCardEdit()
-    " Reset baseline on re-entering this buffer to avoid large idle gaps
     autocmd BufEnter     <buffer> call s:OnBufEnter()
     autocmd BufLeave     <buffer> call s:SaveToDisk(v:true)
   augroup END
 endfunction
 
-function! s:OnVimExit() abort
-  " Only flush when this buffer was tracking card time
-  if exists('b:card_enabled') && b:card_enabled
-    call s:SaveToDisk(v:true)
-  endif
-endfunction
-
 augroup MdCardEditTime
   autocmd!
   autocmd FileType markdown call s:SetupBuffer()
-  autocmd VimLeavePre * call s:OnVimExit()
 augroup END
 
 " Commands
