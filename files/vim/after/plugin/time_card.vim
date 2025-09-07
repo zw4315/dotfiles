@@ -33,13 +33,44 @@ endif
 " delta seconds helper moved to autoload: timecard#util#delta_seconds(last)
 
 function! s:GetCurCardKey() abort
-  " Find nearest previous line starting with '## '
+  " Find nearest previous line starting with '## ' and use normalized title as key
   let lnum = search('^\s*##\s\+', 'bnW')
   if lnum == 0
     return ''
   endif
   let title = matchstr(getline(lnum), '^\s*##\s\+\zs.*')
-  return lnum . ':' . title
+  let title = trim(title)
+  let title = substitute(title, '\s\+', ' ', 'g')
+  return title
+endfunction
+
+" If the current edit is on a header and the title changed, move accumulated seconds
+function! s:MaybeRenameCard(prev_key, cur_key) abort
+  if a:prev_key ==# a:cur_key
+    return
+  endif
+  if getline('.') !~# '^\s*##\s\+'
+    return
+  endif
+  if !exists('b:card_seconds_by_key')
+    return
+  endif
+  let oldsec = get(b:card_seconds_by_key, a:prev_key, 0.0)
+  if oldsec <= 0
+    return
+  endif
+  let tgt = get(b:card_seconds_by_key, a:cur_key, 0.0)
+  let b:card_seconds_by_key[a:cur_key] = tgt + oldsec
+  call remove(b:card_seconds_by_key, a:prev_key)
+  let b:card_dirty = 1
+endfunction
+
+" Normalize a persisted card key to a title key (no line-number mapping)
+function! s:NormalizeDiskKey(k) abort
+  let key = type(a:k) == type('') ? a:k : string(a:k)
+  let key = trim(key)
+  let key = substitute(key, '\s\+', ' ', 'g')
+  return key
 endfunction
 
 " Filename and filetype gate in autoload: timecard#util#filename_allowed()
@@ -91,8 +122,13 @@ function! s:LoadFromDisk() abort
       return
     endtry
   endtry
-  if type(get(obj, 'cards', {})) == type({})
-    let b:card_seconds_by_key = copy(obj.cards)
+  let cards = get(obj, 'cards', {})
+  if type(cards) == type({})
+    let b:card_seconds_by_key = {}
+    for k in keys(cards)
+      let nk = s:NormalizeDiskKey(k)
+      let b:card_seconds_by_key[nk] = get(b:card_seconds_by_key, nk, 0.0) + cards[k]
+    endfor
   endif
   let b:card_loaded_day = meta.day
   let b:card_dirty = 0
@@ -180,6 +216,8 @@ function! s:OnCardEdit() abort
     let b:card_seconds_by_key[b:card_last_key] = prev + delta
     let b:card_dirty = 1
   endif
+
+  call s:MaybeRenameCard(b:card_last_key, card_cur_key)
 
   " Flush immediately when switching cards if enabled
   if g:md_card_flush_on_switch && card_cur_key !=# b:card_last_key && get(b:, 'card_dirty', 0)
