@@ -46,7 +46,8 @@ endfunction
 
 " If the current edit is on a header and the title changed, move accumulated seconds
 function! s:MergeOnTitleRename(prev_key, cur_key) abort
-  if a:prev_key ==# a:cur_key
+  " Fast path: only treat as rename when editing the header line itself
+  if a:prev_key ==# '' || a:cur_key ==# '' || a:prev_key ==# a:cur_key
     return
   endif
   if getline('.') !~# '^\s*##\s\+'
@@ -135,6 +136,9 @@ function! s:OnBufEnter() abort
     call s:LoadFromDisk()
   endif
   let b:card_last_time = reltime()
+  " Capture the pre-edit title key so a first edit that renames the header
+  " can correctly migrate seconds from old -> new.
+  let b:card_last_key = s:GetCurCardKey()
 endfunction
 
 " Store current buffer's card-time snapshot for today (throttled or forced)
