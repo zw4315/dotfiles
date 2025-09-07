@@ -34,11 +34,11 @@ endif
 
 function! s:GetCurCardKey() abort
   " Find nearest previous line starting with '## ' and use normalized title as key
-  let lnum = search('^\s*##\s\+', 'bnW')
+  let lnum = search('^\s*##\s*', 'bnW')
   if lnum == 0
     return ''
   endif
-  let title = matchstr(getline(lnum), '^\s*##\s\+\zs.*')
+  let title = matchstr(getline(lnum), '^\s*##\s*\zs.*')
   let title = trim(title)
   let title = substitute(title, '\s\+', ' ', 'g')
   return title
@@ -50,7 +50,7 @@ function! s:MergeOnTitleRename(prev_key, cur_key) abort
   if a:prev_key ==# '' || a:cur_key ==# '' || a:prev_key ==# a:cur_key
     return
   endif
-  if getline('.') !~# '^\s*##\s\+'
+  if getline('.') !~# '^\s*##\s*'
     return
   endif
   if !exists('b:cards') | return | endif
@@ -187,7 +187,11 @@ function! s:SaveToDisk(force) abort
   if !get(b:, 'card_dirty', 0)
     return
   endif
-  if !a:force
+  let should_force = a:force
+  if !should_force && !filereadable(meta.file)
+    let should_force = 1
+  endif
+  if !should_force
     if !exists('b:card_last_write_time')
       let b:card_last_write_time = reltime()
       return
@@ -245,8 +249,20 @@ function! s:OnCardEdit() abort
 
   " First change in this buffer/session: set baseline and card, don't count yet
   if !exists('b:card_last_time') || !exists('b:card_last_key')
+    let nowiso = timecard#util#iso(localtime())
+    let cur = s:GetCurCardKey()
     let b:card_last_time = reltime()
-    let b:card_last_key = s:GetCurCardKey()
+    let b:card_last_key = cur
+    " Seed the current card so first edit can create today's JSON even before seconds accrue
+    if cur !=# ''
+      let c0 = get(b:cards, cur, {'title': cur, 'seconds': 0.0, 'created_at': nowiso, 'updated_at': nowiso})
+      if !has_key(c0, 'created_at') | let c0.created_at = nowiso | endif
+      if !has_key(c0, 'updated_at') | let c0.updated_at = nowiso | endif
+      let b:cards[cur] = c0
+      let b:card_dirty = 1
+      " Create today's JSON immediately for fresh projects/buffers
+      call s:SaveToDisk(v:true)
+    endif
     return
   endif
 
