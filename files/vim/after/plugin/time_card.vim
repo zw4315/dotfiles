@@ -33,8 +33,8 @@ endif
 " delta seconds helper moved to autoload: timecard#util#delta_seconds(last)
 
 function! s:GetCurCardKey() abort
-  " Find nearest previous line starting with '## ' and use normalized title as key
-  let lnum = search('^\s*##\s*', 'bnW')
+  " Find nearest previous (or current) '##' header, normalize as key
+  let lnum = search('^\s*##\s*', 'bcnW')
   if lnum == 0
     return ''
   endif
@@ -324,7 +324,7 @@ function! s:SetupBuffer() abort
     autocmd TextChanged  <buffer> call s:OnCardEdit()
     autocmd TextChangedI <buffer> call s:OnCardEdit()
     autocmd BufEnter     <buffer> call s:OnBufEnter()
-    autocmd BufLeave     <buffer> call s:SaveToDisk(v:true)
+    autocmd BufWritePost <buffer> call s:SaveToDisk(v:true)
   augroup END
 endfunction
 
