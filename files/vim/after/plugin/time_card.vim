@@ -326,6 +326,8 @@ function! s:SetupBuffer() abort
     autocmd BufEnter     <buffer> call s:OnBufEnter()
     autocmd BufWritePost <buffer> call s:SaveToDisk(v:true)
   augroup END
+  " Ensure existing history is loaded immediately on first setup of this buffer
+  call s:OnBufEnter()
 endfunction
 
 augroup MdCardEditTime
