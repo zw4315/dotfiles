@@ -120,45 +120,8 @@ function! s:LoadFromDisk() abort
     if !exists('b:cards') | let b:cards = {} | endif
     return
   endif
-  " Read the whole file and decode once for simplicity
-  try
-    let obj = json_decode(join(readfile(meta.file), "\n"))
-  catch
-    let b:card_loaded_day = meta.day
-    let b:card_dirty = 0
-    if !exists('b:cards') | let b:cards = {} | endif
-    return
-  endtry
-  let cards = get(obj, 'cards', {})
-  let nowiso = timecard#util#iso(localtime())
-  let b:cards = {}
-  if type(cards) == type({})
-    for k in keys(cards)
-      let nk = s:NormalizeDiskKey(k)
-      let item = cards[k]
-      if type(item) == type(0.0) || type(item) == type(0)
-        let sec = (0.0 + item)
-        let created = get(obj, 'updated_at', nowiso)
-        let updated = get(obj, 'updated_at', created)
-        let b:cards[nk] = {
-              \ 'title': nk,
-              \ 'seconds': sec,
-              \ 'created_at': created,
-              \ 'updated_at': updated,
-              \ }
-      elseif type(item) == type({})
-        let sec = (0.0 + get(item, 'seconds', 0.0))
-        let created = get(item, 'created_at', nowiso)
-        let updated = get(item, 'updated_at', created)
-        let b:cards[nk] = {
-              \ 'title': nk,
-              \ 'seconds': sec,
-              \ 'created_at': created,
-              \ 'updated_at': updated,
-              \ }
-      endif
-    endfor
-  endif
+  let obj = s:ReadJson(meta.file)
+  let b:cards = s:ImportCards(obj)
   let b:card_loaded_day = meta.day
   let b:card_dirty = 0
 endfunction
@@ -175,6 +138,31 @@ function! s:OnBufEnter() abort
 endfunction
 
 " Store current buffer's card-time snapshot for today (throttled or forced)
+function! s:SerializeCards(nowiso) abort
+  let out = {}
+  let total = 0.0
+  for k in keys(get(b:, 'cards', {}))
+    let c = b:cards[k]
+    if !has_key(c, 'created_at') | let c.created_at = a:nowiso | endif
+    if !has_key(c, 'updated_at') | let c.updated_at = a:nowiso | endif
+    let b:cards[k] = c
+    let sec = (0.0 + get(c, 'seconds', 0.0))
+    let out[k] = {'title': k, 'seconds': sec, 'created_at': c.created_at, 'updated_at': c.updated_at}
+    let total += sec
+  endfor
+  return [out, total]
+endfunction
+
+function! s:WriteJson(path, obj) abort
+  let tmp = a:path . '.tmp'
+  try
+    call writefile([json_encode(a:obj)], tmp)
+    call rename(tmp, a:path)
+  catch
+    call writefile([json_encode(a:obj)], a:path)
+  endtry
+endfunction
+
 function! s:SaveToDisk(force) abort
   let abs = expand('%:p')
   if abs ==# ''
@@ -202,24 +190,9 @@ function! s:SaveToDisk(force) abort
   endif
   call timecard#util#ensure_dir(meta.dir)
   let nowiso = timecard#util#iso(localtime())
-  let cards = {}
-  let tot = 0.0
-  for k in keys(b:cards)
-    let c = b:cards[k]
-    " Stabilize per-card timestamps: creation time should not change across saves
-    if !has_key(c, 'created_at') | let c.created_at = nowiso | endif
-    if !has_key(c, 'updated_at') | let c.updated_at = nowiso | endif
-    let b:cards[k] = c
-
-    let sec = (0.0 + get(c, 'seconds', 0.0))
-    let cards[k] = {
-          \ 'title': k,
-          \ 'seconds': sec,
-          \ 'created_at': c.created_at,
-          \ 'updated_at': c.updated_at,
-          \ }
-    let tot += sec
-  endfor
+  let parts = s:SerializeCards(nowiso)
+  let cards = parts[0]
+  let tot = parts[1]
   let obj = {
         \ 'version': 2,
         \ 'day': meta.day,
@@ -230,16 +203,40 @@ function! s:SaveToDisk(force) abort
         \ 'total': tot,
         \ 'cards': cards,
         \ }
-  let tmp = meta.file . '.tmp'
-  try
-    call writefile([json_encode(obj)], tmp)
-    call rename(tmp, meta.file)
-  catch
-    " Fallback: try direct write
-    call writefile([json_encode(obj)], meta.file)
-  endtry
+  call s:WriteJson(meta.file, obj)
   let b:card_last_write_time = reltime()
   let b:card_dirty = 0
+endfunction
+
+function! s:SeedFirstEdit() abort
+  let nowiso = timecard#util#iso(localtime())
+  let cur = s:GetCurCardKey()
+  let b:card_last_time = reltime()
+  let b:card_last_key = cur
+  if cur ==# '' | return | endif
+  let c0 = get(b:cards, cur, {'title': cur, 'seconds': 0.0, 'created_at': nowiso, 'updated_at': nowiso})
+  if !has_key(c0, 'created_at') | let c0.created_at = nowiso | endif
+  if !has_key(c0, 'updated_at') | let c0.updated_at = nowiso | endif
+  let b:cards[cur] = c0
+  let b:card_dirty = 1
+  call s:SaveToDisk(v:true)
+endfunction
+
+function! s:AddDeltaToPrev(delta) abort
+  if b:card_last_key ==# '' || a:delta > g:md_card_gap_sec | return | endif
+  let nowiso = timecard#util#iso(localtime())
+  let c = get(b:cards, b:card_last_key, {'title': b:card_last_key, 'seconds': 0.0, 'created_at': nowiso, 'updated_at': nowiso})
+  let c.seconds = (0.0 + get(c, 'seconds', 0.0)) + a:delta
+  if !has_key(c, 'created_at') | let c.created_at = nowiso | endif
+  let c.updated_at = nowiso
+  let b:cards[b:card_last_key] = c
+  let b:card_dirty = 1
+endfunction
+
+function! s:MaybeFlushOnSwitch(prev_key, cur_key) abort
+  if g:md_card_flush_on_switch && a:cur_key !=# a:prev_key && get(b:, 'card_dirty', 0)
+    call s:SaveToDisk(v:true)
+  endif
 endfunction
 
 function! s:OnCardEdit() abort
@@ -249,43 +246,18 @@ function! s:OnCardEdit() abort
 
   " First change in this buffer/session: set baseline and card, don't count yet
   if !exists('b:card_last_time') || !exists('b:card_last_key')
-    let nowiso = timecard#util#iso(localtime())
-    let cur = s:GetCurCardKey()
-    let b:card_last_time = reltime()
-    let b:card_last_key = cur
-    " Seed the current card so first edit can create today's JSON even before seconds accrue
-    if cur !=# ''
-      let c0 = get(b:cards, cur, {'title': cur, 'seconds': 0.0, 'created_at': nowiso, 'updated_at': nowiso})
-      if !has_key(c0, 'created_at') | let c0.created_at = nowiso | endif
-      if !has_key(c0, 'updated_at') | let c0.updated_at = nowiso | endif
-      let b:cards[cur] = c0
-      let b:card_dirty = 1
-      " Create today's JSON immediately for fresh projects/buffers
-      call s:SaveToDisk(v:true)
-    endif
+    call s:SeedFirstEdit()
     return
   endif
 
   let card_cur_key = s:GetCurCardKey()
   let delta = timecard#util#delta_seconds(b:card_last_time)
 
-  " Accumulate into the previous card when within the allowed gap
-  if b:card_last_key !=# '' && delta <= g:md_card_gap_sec
-    let nowiso = timecard#util#iso(localtime())
-    let c = get(b:cards, b:card_last_key, {'title': b:card_last_key, 'seconds': 0.0, 'created_at': nowiso, 'updated_at': nowiso})
-    let c.seconds = (0.0 + get(c, 'seconds', 0.0)) + delta
-    if !has_key(c, 'created_at') | let c.created_at = nowiso | endif
-    let c.updated_at = nowiso
-    let b:cards[b:card_last_key] = c
-    let b:card_dirty = 1
-  endif
+  call s:AddDeltaToPrev(delta)
 
   call s:MergeOnTitleRename(b:card_last_key, card_cur_key)
 
-  " Flush immediately when switching cards if enabled
-  if g:md_card_flush_on_switch && card_cur_key !=# b:card_last_key && get(b:, 'card_dirty', 0)
-    call s:SaveToDisk(v:true)
-  endif
+  call s:MaybeFlushOnSwitch(b:card_last_key, card_cur_key)
 
   " Update baseline and current card
   let b:card_last_time = reltime()
