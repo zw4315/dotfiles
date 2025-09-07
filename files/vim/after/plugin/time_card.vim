@@ -331,6 +331,8 @@ endfunction
 augroup MdCardEditTime
   autocmd!
   autocmd FileType markdown call s:SetupBuffer()
+  " Ensure setup also happens when switching to another Markdown file via plugins
+  autocmd BufEnter *.md,*.markdown call s:SetupBuffer()
 augroup END
 
 " Commands
