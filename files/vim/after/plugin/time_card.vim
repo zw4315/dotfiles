@@ -292,6 +292,31 @@ function! s:OnCardEdit() abort
   let b:card_last_key = card_cur_key
 endfunction
 
+" Remove cards that exist in JSON/memory but no longer exist in the current buffer
+function! s:CleanUnusedCards() abort
+  if !exists('b:cards')
+    echo 'timecard: no cards loaded for this buffer'
+    return
+  endif
+  let present = s:CollectBufferH2Titles()
+  let removed = []
+  for k in keys(b:cards)
+    if !has_key(present, k)
+      call add(removed, k)
+    endif
+  endfor
+  if empty(removed)
+    echo 'timecard: no stale cards to clean'
+    return
+  endif
+  for k in removed
+    call remove(b:cards, k)
+  endfor
+  let b:card_dirty = 1
+  call s:SaveToDisk(v:true)
+  echo 'timecard: cleaned ' . len(removed) . ' card(s)'
+endfunction
+
 function! s:ReportHere() abort
   let key = s:GetCurCardKey()
   if key ==# ''
@@ -313,6 +338,26 @@ function! s:SetupBuffer() abort
   endif
   if !exists('b:cards')
     let b:cards = {}
+" Collect all valid H2 (##) titles present in current buffer.
+" Returns a dictionary used as a set: {title -> 1}
+function! s:CollectBufferH2Titles() abort
+  let titles = {}
+  let lnum = 1
+  while lnum <= line('$')
+    let l = getline(lnum)
+    if l =~# '^\s*##\s\+\S'
+      let t = matchstr(l, '^\s*##\s\+\zs.*')
+      let t = trim(t)
+      let t = substitute(t, '\s\+', ' ', 'g')
+      if !empty(t)
+        let titles[t] = 1
+      endif
+    endif
+    let lnum += 1
+  endwhile
+  return titles
+endfunction
+
   endif
   if !exists('b:card_dirty')
     let b:card_dirty = 0
@@ -338,3 +383,4 @@ augroup END
 " Commands
 command! TimeCardHere call s:ReportHere()
 command! TimeCardReset call s:Reset()
+command! TimeCardsClean call s:CleanUnusedCards()
