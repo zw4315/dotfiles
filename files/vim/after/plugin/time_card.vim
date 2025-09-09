@@ -36,6 +36,26 @@ function! s:IsH2HeaderInProgress() abort
   return 0
 endfunction
 
+" Collect all valid H2 (##) titles present in current buffer.
+" Returns a dictionary used as a set: {title -> 1}
+function! s:CollectBufferH2Titles() abort
+  let titles = {}
+  let lnum = 1
+  while lnum <= line('$')
+    let l = getline(lnum)
+    if l =~# '^\s*##\s\+\S'
+      let t = matchstr(l, '^\s*##\s\+\zs.*')
+      let t = trim(t)
+      let t = substitute(t, '\s\+', ' ', 'g')
+      if !empty(t)
+        let titles[t] = 1
+      endif
+    endif
+    let lnum += 1
+  endwhile
+  return titles
+endfunction
+
 function! s:GetCurCardKey() abort
   " Find nearest previous (or current) '## ' header (not ###), normalize as key
   let lnum = search('^\s*##\s\+', 'bcnW')
@@ -309,6 +329,18 @@ function! s:CleanUnusedCards() abort
     echo 'timecard: no stale cards to clean'
     return
   endif
+  " Preview list and ask for confirmation
+  echo 'timecard: will remove ' . len(removed) . ' card(s):'
+  for k in sort(removed)
+    echo '  - ' . k
+  endfor
+  call inputsave()
+  let ans = input('Proceed? [y/N] ')
+  call inputrestore()
+  if ans ==# '' || tolower(ans)[0] !=# 'y'
+    echo 'timecard: clean aborted'
+    return
+  endif
   for k in removed
     call remove(b:cards, k)
   endfor
@@ -338,25 +370,6 @@ function! s:SetupBuffer() abort
   endif
   if !exists('b:cards')
     let b:cards = {}
-" Collect all valid H2 (##) titles present in current buffer.
-" Returns a dictionary used as a set: {title -> 1}
-function! s:CollectBufferH2Titles() abort
-  let titles = {}
-  let lnum = 1
-  while lnum <= line('$')
-    let l = getline(lnum)
-    if l =~# '^\s*##\s\+\S'
-      let t = matchstr(l, '^\s*##\s\+\zs.*')
-      let t = trim(t)
-      let t = substitute(t, '\s\+', ' ', 'g')
-      if !empty(t)
-        let titles[t] = 1
-      endif
-    endif
-    let lnum += 1
-  endwhile
-  return titles
-endfunction
 
   endif
   if !exists('b:card_dirty')
