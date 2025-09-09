@@ -364,6 +364,125 @@ function! s:Reset() abort
   echo 'timecard: timers reset'
 endfunction
 
+" Clean all historical JSON files for this Markdown file by removing any cards
+" that are not present as H2 titles in the current buffer.
+function! s:CleanUnusedCardsHistory() abort
+  " Collect current buffer titles as the source of truth
+  let present = s:CollectBufferH2Titles()
+  let present_count = len(keys(present))
+
+  " Resolve all day files for this buffer
+  let meta = s:BuildDiskMeta(expand('%:p'))
+  let base_days = fnamemodify(meta.dir, ':h')
+  let filename = fnamemodify(meta.file, ':t')
+  let pattern = base_days . '/*/' . filename
+  let files = []
+  if exists('*glob')
+    let files = split(glob(pattern, 1), "\n")
+  endif
+  if empty(files)
+    echo 'timecard: no history files found'
+    return
+  endif
+
+  " First pass: preview counts per file/day
+  let preview = []
+  let total_removed = 0
+  for p in files
+    if empty(p) || !filereadable(p)
+      continue
+    endif
+    let obj = timecard#util#read_json(p)
+    let cards = get(obj, 'cards', {})
+    if type(cards) != type({})
+      continue
+    endif
+    let removed_here = 0
+    for k in keys(cards)
+      let nk = s:NormalizeDiskKey(k)
+      if !has_key(present, nk)
+        let removed_here += 1
+      endif
+    endfor
+    if removed_here > 0
+      let day = get(obj, 'day', fnamemodify(fnamemodify(p, ':h'), ':t'))
+      call add(preview, printf('%s  -%d', day, removed_here))
+      let total_removed += removed_here
+    endif
+  endfor
+
+  if total_removed == 0
+    echo 'timecard: no stale cards across history'
+    return
+  endif
+
+  " Show summary and confirm
+  echo 'timecard: will remove ' . total_removed . ' card(s) across ' . len(preview) . ' day(s):'
+  for line in sort(preview)
+    echo '  ' . line
+  endfor
+  if present_count == 0
+    echo 'warning: current buffer has 0 H2 titles; this will delete all cards for this file across history.'
+  endif
+  call inputsave()
+  let ans = input('Proceed? [y/N] ')
+  call inputrestore()
+  if ans ==# '' || tolower(ans)[0] !=# 'y'
+    echo 'timecard: history clean aborted'
+    return
+  endif
+
+  " Second pass: mutate and write
+  let nowiso = timecard#util#iso(localtime())
+  let changed_files = 0
+  for p in files
+    if empty(p) || !filereadable(p)
+      continue
+    endif
+    let obj = timecard#util#read_json(p)
+    let cards = get(obj, 'cards', {})
+    if type(cards) != type({})
+      continue
+    endif
+    let removed_here = 0
+    for k in keys(cards)
+      let nk = s:NormalizeDiskKey(k)
+      if !has_key(present, nk)
+        call remove(cards, k)
+        let removed_here += 1
+      endif
+    endfor
+    if removed_here == 0
+      continue
+    endif
+    " Recompute total and ensure timestamps in items
+    let tot = 0.0
+    for k in keys(cards)
+      let item = cards[k]
+      if type(item) == type(0.0) || type(item) == type(0)
+        let tot += (0.0 + item)
+      elseif type(item) == type({})
+        let tot += (0.0 + get(item, 'seconds', 0.0))
+        if !has_key(item, 'updated_at') | let item.updated_at = nowiso | endif
+        if !has_key(item, 'created_at') | let item.created_at = nowiso | endif
+        let cards[k] = item
+      endif
+    endfor
+    let obj.cards = cards
+    let obj.total = tot
+    let obj.updated_at = nowiso
+    call s:WriteJson(p, obj)
+    let changed_files += 1
+  endfor
+
+  " If today was affected, refresh memory snapshot
+  if get(b:, 'card_loaded_day', '') ==# timecard#util#day_str()
+    call s:LoadFromDisk()
+  endif
+
+  echo 'timecard: cleaned history in ' . changed_files . ' file(s)'
+endfunction
+
 function! s:SetupBuffer() abort
   if !timecard#util#filename_allowed()
     return
@@ -397,3 +516,4 @@ augroup END
 command! TimeCardHere call s:ReportHere()
 command! TimeCardReset call s:Reset()
 command! TimeCardsClean call s:CleanUnusedCards()
+command! TimeCardsCleanHistory call s:CleanUnusedCardsHistory()
