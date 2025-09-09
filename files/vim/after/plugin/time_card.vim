@@ -144,6 +144,30 @@ function! s:BuildDiskMeta(file) abort
         \ }
 endfunction
 
+" Build per-day store metadata for a specific day override
+function! s:BuildDiskMetaForDay(file, day) abort
+  let abs = fnamemodify(a:file, ':p')
+  let root = (exists('g:md_card_root_dir') && !empty(g:md_card_root_dir))
+        \ ? fnamemodify(g:md_card_root_dir, ':p')
+        \ : timecard#util#project_root(abs)
+  if exists('*relpath')
+    let rel = relpath(abs, root)
+  else
+    let rel = substitute(abs, '^' . escape(root, '\\'), '', '')
+  endif
+  let task = timecard#util#task_from_rel(rel)
+  let hash = timecard#util#hash_name(rel)
+  let base = root . '/.cardtime'
+  let dir = base . '/days/' . a:day
+  return {
+        \ 'dir': dir,
+        \ 'file': dir . '/' . hash . '.json',
+        \ 'rel': rel,
+        \ 'task': task,
+        \ 'day': a:day,
+        \ }
+endfunction
+
 function! s:LoadFromDisk() abort
   let f = expand('%:p')
   let meta = s:BuildDiskMeta(f)
@@ -317,6 +341,67 @@ function! s:CleanUnusedCards() abort
   echo 'timecard: cleaned ' . len(removed) . ' card(s)'
 endfunction
 
+" Clean with optional day argument to target a specific per-day JSON
+function! s:CleanUnusedCardsCommand(...) abort
+  let day = ''
+  if a:0 >= 1
+    let day = a:1
+  endif
+  if day ==# ''
+    call s:CleanUnusedCards()
+    return
+  endif
+  let meta = s:BuildDiskMetaForDay(expand('%:p'), day)
+  if !filereadable(meta.file)
+    echo 'timecard: no data file for day ' . day
+    return
+  endif
+  let obj = timecard#util#read_json(meta.file)
+  let cards = get(obj, 'cards', {})
+  if type(cards) != type({})
+    echo 'timecard: invalid data file for day ' . day
+    return
+  endif
+  let present = s:CollectBufferH2Titles()
+  let removed = []
+  for k in keys(cards)
+    let nk = s:NormalizeDiskKey(k)
+    if !has_key(present, nk)
+      call add(removed, k)
+      call remove(cards, k)
+    endif
+  endfor
+  if empty(removed)
+    echo 'timecard: no stale cards to clean for ' . day
+    return
+  endif
+  " Recompute total and update timestamps
+  let nowiso = timecard#util#iso(localtime())
+  let tot = 0.0
+  for k in keys(cards)
+    let item = cards[k]
+    if type(item) == type(0.0) || type(item) == type(0)
+      let tot += (0.0 + item)
+    elseif type(item) == type({})
+      let tot += (0.0 + get(item, 'seconds', 0.0))
+      if !has_key(item, 'updated_at') | let item.updated_at = nowiso | endif
+      if !has_key(item, 'created_at') | let item.created_at = nowiso | endif
+      let cards[k] = item
+    endif
+  endfor
+  let obj.cards = cards
+  let obj.total = tot
+  let obj.updated_at = nowiso
+  call timecard#util#ensure_dir(meta.dir)
+  call s:WriteJson(meta.file, obj)
+  " If we happened to clean today's file, reflect in-memory state too
+  if get(b:, 'card_loaded_day', '') ==# day
+    let b:cards = s:ImportCards(obj)
+    let b:card_dirty = 0
+  endif
+  echo 'timecard: cleaned ' . len(removed) . ' card(s) for ' . day
+endfunction
+
 function! s:ReportHere() abort
   let key = s:GetCurCardKey()
   if key ==# ''
@@ -383,4 +468,4 @@ augroup END
 " Commands
 command! TimeCardHere call s:ReportHere()
 command! TimeCardReset call s:Reset()
-command! TimeCardsClean call s:CleanUnusedCards()
+command! -nargs=? TimeCardsClean call s:CleanUnusedCardsCommand(<f-args>)
