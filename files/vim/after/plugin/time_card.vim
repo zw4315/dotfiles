@@ -14,16 +14,6 @@ if !exists('g:md_card_gap_sec')
   let g:md_card_gap_sec = 30.0
 endif
 
-" Persistence configuration
-" Root selection: use g:md_card_root_dir if set; otherwise detect project
-" root per file via .git or a .root marker, and store under <root>/.cardtime.
-if !exists('g:md_card_flush_interval')
-  let g:md_card_flush_interval = 60.0
-endif
-if !exists('g:md_card_flush_on_switch')
-  let g:md_card_flush_on_switch = 1
-endif
-
 " Enable tracking only for filenames matching these keywords (case-insensitive).
 " Accepts a list of strings or a regex string.
 if !exists('g:md_card_filename_keywords')
@@ -31,6 +21,20 @@ if !exists('g:md_card_filename_keywords')
 endif
 
 " delta seconds helper moved to autoload: timecard#util#delta_seconds(last)
+
+" Detect if the current line indicates an H2 header is being started but
+" not yet a valid '## ' header (e.g. only '#' or '##' without space/title).
+function! s:IsH2HeaderInProgress() abort
+  let l = getline('.')
+  if l =~# '^\s*#$'
+    return 1
+  endif
+  " Match '##' optionally followed by spaces but no title text
+  if l =~# '^\s*##\s*$'
+    return 1
+  endif
+  return 0
+endfunction
 
 function! s:GetCurCardKey() abort
   " Find nearest previous (or current) '## ' header (not ###), normalize as key
@@ -85,7 +89,6 @@ function! s:MergeOnTitleRename(prev_key, cur_key) abort
 
   let old = get(b:cards, a:prev_key, {})
   let oldsec = (0.0 + get(old, 'seconds', 0.0))
-  if oldsec <= 0.0 | return | endif
 
   let nowiso = timecard#util#iso(localtime())
   let new = get(b:cards, a:cur_key, {'title': a:cur_key, 'seconds': 0.0, 'created_at': nowiso, 'updated_at': nowiso})
@@ -99,7 +102,9 @@ function! s:MergeOnTitleRename(prev_key, cur_key) abort
   let new.updated_at = nowiso
 
   let b:cards[a:cur_key] = new
-  call remove(b:cards, a:prev_key)
+  if has_key(b:cards, a:prev_key)
+    call remove(b:cards, a:prev_key)
+  endif
   let b:card_dirty = 1
 endfunction
 
@@ -203,19 +208,6 @@ function! s:SaveToDisk(force) abort
   if !get(b:, 'card_dirty', 0)
     return
   endif
-  let should_force = a:force
-  if !should_force && !filereadable(meta.file)
-    let should_force = 1
-  endif
-  if !should_force
-    if !exists('b:card_last_write_time')
-      let b:card_last_write_time = reltime()
-      return
-    endif
-    if timecard#util#delta_seconds(b:card_last_write_time) < g:md_card_flush_interval
-      return
-    endif
-  endif
   call timecard#util#ensure_dir(meta.dir)
   let nowiso = timecard#util#iso(localtime())
   let parts = s:SerializeCards(nowiso)
@@ -232,13 +224,17 @@ function! s:SaveToDisk(force) abort
         \ 'cards': cards,
         \ }
   call s:WriteJson(meta.file, obj)
-  let b:card_last_write_time = reltime()
   let b:card_dirty = 0
 endfunction
 
 function! s:SeedFirstEdit() abort
   let nowiso = timecard#util#iso(localtime())
   let cur = s:GetCurCardKey()
+  " If user is just starting a new H2 header (typing '#' or '##'),
+  " treat as no active card to avoid attributing to the previous card.
+  if s:IsH2HeaderInProgress()
+    let cur = ''
+  endif
   let b:card_last_time = reltime()
   let b:card_last_key = cur
   if cur ==# '' | return | endif
@@ -247,11 +243,14 @@ function! s:SeedFirstEdit() abort
   if !has_key(c0, 'updated_at') | let c0.updated_at = nowiso | endif
   let b:cards[cur] = c0
   let b:card_dirty = 1
-  call s:SaveToDisk(v:true)
 endfunction
 
-function! s:AddDeltaToPrev(delta) abort
+function! s:AccumulateDeltaToLastCard(delta) abort
   if b:card_last_key ==# '' || a:delta > g:md_card_gap_sec | return | endif
+  " Avoid creating zero-second throwaway entries for brand-new titles
+  if a:delta <= 0.0 && !has_key(b:cards, b:card_last_key)
+    return
+  endif
   let nowiso = timecard#util#iso(localtime())
   let c = get(b:cards, b:card_last_key, {'title': b:card_last_key, 'seconds': 0.0, 'created_at': nowiso, 'updated_at': nowiso})
   let c.seconds = (0.0 + get(c, 'seconds', 0.0)) + a:delta
@@ -261,11 +260,6 @@ function! s:AddDeltaToPrev(delta) abort
   let b:card_dirty = 1
 endfunction
 
-function! s:MaybeFlushOnSwitch(prev_key, cur_key) abort
-  if g:md_card_flush_on_switch && a:cur_key !=# a:prev_key && get(b:, 'card_dirty', 0)
-    call s:SaveToDisk(v:true)
-  endif
-endfunction
 
 function! s:OnCardEdit() abort
   if !exists('b:cards')
@@ -281,17 +275,21 @@ function! s:OnCardEdit() abort
   let card_cur_key = s:GetCurCardKey()
   let delta = timecard#util#delta_seconds(b:card_last_time)
 
-  call s:AddDeltaToPrev(delta)
+  " If user is starting a new H2 header (only '#' or '##'), do not
+  " attribute the delta to the previous card; reset baseline and pause.
+  if s:IsH2HeaderInProgress()
+    let b:card_last_time = reltime()
+    let b:card_last_key = ''
+    return
+  endif
+
+  call s:AccumulateDeltaToLastCard(delta)
 
   call s:MergeOnTitleRename(b:card_last_key, card_cur_key)
-
-  call s:MaybeFlushOnSwitch(b:card_last_key, card_cur_key)
 
   " Update baseline and current card
   let b:card_last_time = reltime()
   let b:card_last_key = card_cur_key
-  " Throttled persistence
-  call s:SaveToDisk(v:false)
 endfunction
 
 function! s:ReportHere() abort
