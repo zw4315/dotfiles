@@ -20,6 +20,11 @@ if !exists('g:md_card_filename_keywords')
   let g:md_card_filename_keywords = ['append', 'review', 'kanban']
 endif
 
+" Minimum title length to consider a card valid/persistable
+if !exists('g:md_card_min_title_len')
+  let g:md_card_min_title_len = 2
+endif
+
 " delta seconds helper moved to autoload: timecard#util#delta_seconds(last)
 
 " Detect if the current line indicates an H2 header is being started but
@@ -34,6 +39,17 @@ function! s:IsH2HeaderInProgress() abort
     return 1
   endif
   return 0
+endfunction
+
+function! s:_title_len(text) abort
+  if exists('*strchars')
+    return strchars(a:text)
+  endif
+  return strlen(a:text)
+endfunction
+
+function! s:IsTitleTooShort(title) abort
+  return s:_title_len(trim(a:title)) < g:md_card_min_title_len
 endfunction
 
 " Collect all valid H2 (##) titles present in current buffer.
@@ -258,6 +274,9 @@ function! s:SeedFirstEdit() abort
   let b:card_last_time = reltime()
   let b:card_last_key = cur
   if cur ==# '' | return | endif
+  if s:IsTitleTooShort(cur)
+    return
+  endif
   let c0 = get(b:cards, cur, {'title': cur, 'seconds': 0.0, 'created_at': nowiso, 'updated_at': nowiso})
   if !has_key(c0, 'created_at') | let c0.created_at = nowiso | endif
   if !has_key(c0, 'updated_at') | let c0.updated_at = nowiso | endif
@@ -269,6 +288,10 @@ function! s:AccumulateDeltaToLastCard(delta) abort
   if b:card_last_key ==# '' || a:delta > g:md_card_gap_sec | return | endif
   " Avoid creating zero-second throwaway entries for brand-new titles
   if a:delta <= 0.0 && !has_key(b:cards, b:card_last_key)
+    return
+  endif
+  " Avoid creating too-short titles (e.g., single-letter) as cards
+  if !has_key(b:cards, b:card_last_key) && s:IsTitleTooShort(b:card_last_key)
     return
   endif
   let nowiso = timecard#util#iso(localtime())
