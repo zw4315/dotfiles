@@ -33,12 +33,12 @@ endif
 " delta seconds helper moved to autoload: timecard#util#delta_seconds(last)
 
 function! s:GetCurCardKey() abort
-  " Find nearest previous (or current) '##' header, normalize as key
-  let lnum = search('^\s*##\s*', 'bcnW')
+  " Find nearest previous (or current) '## ' header (not ###), normalize as key
+  let lnum = search('^\s*##\s\+', 'bcnW')
   if lnum == 0
     return ''
   endif
-  let title = matchstr(getline(lnum), '^\s*##\s*\zs.*')
+  let title = matchstr(getline(lnum), '^\s*##\s\+\zs.*')
   let title = trim(title)
   let title = substitute(title, '\s\+', ' ', 'g')
   return title
@@ -78,7 +78,7 @@ function! s:MergeOnTitleRename(prev_key, cur_key) abort
   if a:prev_key ==# '' || a:cur_key ==# '' || a:prev_key ==# a:cur_key
     return
   endif
-  if getline('.') !~# '^\s*##\s*'
+  if getline('.') !~# '^\s*##\s\+'
     return
   endif
   if !exists('b:cards') | return | endif
