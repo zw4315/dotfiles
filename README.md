@@ -1,6 +1,6 @@
 # dotfiles
 
-My minimal Vim configuration.
+My minimal configuration for a development environment.
 
 ## Install (auto)
 
