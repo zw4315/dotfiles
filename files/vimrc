@@ -107,6 +107,7 @@ colorscheme onedark
 " ------------------------------
 " 快捷键配置
 " ------------------------------
+nnoremap <leader>g :Rg<Space>
 nnoremap <C-n> :NERDTreeToggle<CR>
 nnoremap <Leader>n :NERDTreeFind<CR>
 nnoremap <silent> <C-p> :Files<CR>
@@ -119,7 +120,6 @@ nnoremap <Leader>yf :let @" = expand('%:t')<CR>
 
 " 按 F8 切换 Tagbar
 nmap <F8> :TagbarToggle<CR> 
-
 
 " ------------------------------
 " 代码 静态检查工具
