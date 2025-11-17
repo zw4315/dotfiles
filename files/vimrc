@@ -24,6 +24,29 @@ set foldmethod=syntax
 set foldlevel=99
 set foldenable
 
+" gtags 的问题定位
+" let g:gutentags_trace = 1
+" let g:gutentags_define_advanced_commands = 1
+
+" 设置 cache 目录（可选）
+let g:gutentags_cache_dir = expand('~/.cache/tags')
+
+" enable gtags module
+let g:gutentags_modules = ['ctags', 'gtags_cscope']
+
+" config project root markers.
+let g:gutentags_project_root = ['.root']
+
+" 关闭自动跳转目录（如果你不想 gutentags_plus 自动 lcd）
+let g:gutentags_plus_switch = 1
+
+" 设置调用 Rg 进行搜索替换的插件 
+let g:zw_rg_default_mappings = 1
+
+" 书签的设置
+let g:bookmark_sign = '♥'
+let g:bookmark_highlight_lines = 1
+
 " ------------------------------
 " 插件系统：vim-plug
 " ------------------------------
@@ -74,24 +97,6 @@ let $FZF_DEFAULT_COMMAND = 'rg --files --hidden --glob "!.git/*"'
 
 " 用 bat 替换 cat
 " let $BAT_THEME = 'TwoDark'
-" 设置 cache 目录（可选）
-let g:gutentags_cache_dir = expand('~/.cache/tags')
-
-" enable gtags module
-let g:gutentags_modules = ['ctags', 'gtags_cscope']
-
-" config project root markers.
-let g:gutentags_project_root = ['.root']
-
-" 关闭自动跳转目录（如果你不想 gutentags_plus 自动 lcd）
-let g:gutentags_plus_switch = 1
-
-" 设置调用 Rg 进行搜索替换的插件 
-let g:zw_rg_default_mappings = 1
-
-" 书签的设置
-let g:bookmark_sign = '♥'
-let g:bookmark_highlight_lines = 1
 
 " ------------------------------
 " 启用插件、语法、配色
