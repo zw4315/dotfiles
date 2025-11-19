@@ -52,6 +52,9 @@ let g:bookmark_highlight_lines = 1
 " ------------------------------
 call plug#begin('~/.vim/plugged')
 
+" 高亮插件
+Plug 't9md/vim-quickhl'
+
 " 适配 gtags 的插件 
 Plug 'ludovicchabant/vim-gutentags'
 Plug 'skywind3000/gutentags_plus'
@@ -112,6 +115,13 @@ colorscheme onedark
 " ------------------------------
 " 快捷键配置
 " ------------------------------
+" 光标下整个单词高亮 / 选区高亮
+nnoremap <Leader>h <Plug>(quickhl-manual-this-whole-word)
+xnoremap <Leader>h <Plug>(quickhl-manual-this-whole-word)
+
+" 清空所有 quickhl 手动高亮
+nnoremap <Leader>H <Plug>(quickhl-manual-reset)
+
 nnoremap <leader>g :Rg<Space>
 nnoremap <C-n> :NERDTreeToggle<CR>
 nnoremap <Leader>n :NERDTreeFind<CR>
