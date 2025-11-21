@@ -28,6 +28,41 @@ let s:flash_count     = 0
 let s:flash_on        = 0
 
 " -------- statusline helper --------
+" -------- optional: integrate with vim-airline --------
+function! s:EnsureAirline() abort
+  " 没有 airline 就直接返回
+  if !exists('*airline#section#create_right')
+    return
+  endif
+
+  " 只初始化一次
+  if exists('g:focus_task_airline_inited') && g:focus_task_airline_inited
+    return
+  endif
+
+  " 如果原来有 X 区，前面插一个 FocusTaskStatus
+  if exists('g:airline_section_x')
+    if stridx(string(g:airline_section_x), 'FocusTaskStatus') < 0
+      let g:airline_section_x = airline#section#create_right(
+            \ ['%{FocusTaskStatus()}', g:airline_section_x]
+            \ )
+    endif
+  else
+    " 没有就单独建一个 X 区
+    let g:airline_section_x = airline#section#create_right(
+          \ ['%{FocusTaskStatus()}', 'filetype']
+          \ )
+  endif
+
+  let g:focus_task_airline_inited = 1
+
+  " 强制 airline 刷新状态栏
+  if exists(':AirlineRefresh')
+    silent! AirlineRefresh
+  endif
+endfunction
+
+
 function! s:UpdateStatus(remaining) abort
   if a:remaining < 0
     let l:rem = 0
@@ -175,6 +210,9 @@ function! s:TaskStart(args) abort
     echom printf('Started %d-minute timer.', l:minutes)
   endif
   echohl None
+
+  " <<< 新加这一行：若有 airline，则自动接线并刷新
+  call s:EnsureAirline()
 endfunction
 
 function! s:TaskCancel() abort
@@ -200,6 +238,6 @@ endfunction
 command! -nargs=+ AddTask    call s:TaskStart(<q-args>)
 command! -nargs=0 CancelTask call s:TaskCancel()
 
-" you can also use shorter names if you like:
-command! -nargs=+ TaskStart  call s:TaskStart(<q-args>)
-command! -nargs=0 TaskStop   call s:TaskCancel()
+command! -nargs=+ Ft call s:TaskStart(<q-args>)
+command! -nargs=0 Fc call s:TaskCancel()
+
