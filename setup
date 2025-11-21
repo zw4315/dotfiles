@@ -33,7 +33,7 @@ link_all() {
         name="$(basename "$path")"
 
         if [[ "$name" == "vim" ]]; then
-            # Vim 特殊处理，保留 ~/.vim/plugin
+            # Vim 特殊处理：只拆分子目录链接，保留本地的 ~/.vim/plugged
             link_vim_preserve_plugins "$path" "$HOME/.vim"
         else
             link_one "$path" "$HOME/.$name"
@@ -52,12 +52,7 @@ link_vim_preserve_plugins() {
         local base
         base="$(basename "$sub")"
 
-        if [[ "$base" == "plugin" ]]; then
-            # 跳过 plugin 目录，不覆盖现有插件
-            echo "⚠️ Skipping linking of $dst_root/plugin to preserve existing plugins"
-            continue
-        fi
-
+        # 注意：~/.vim/plugged *不* 在 $src_root 里，所以不会被动到
         link_one "$sub" "$dst_root/$base"
     done
 }
