@@ -14,6 +14,9 @@ if !executable('rg')
   echohl WarningMsg | echom '[zw-rg] ripgrep (rg) not found in PATH.' | echohl None
 endif
 
+" 切换查看当前的 top3 目标
+nnoremap <leader>ct :Rg 当务之急<CR>
+
 " ---- Rg 搜索命令（调用 autoload/zw/rg.vim） -------------------------------
 command! -nargs=* Rg      call zw#rg#run('smart', <q-args>)
 command! -nargs=* Rgcs  call zw#rg#run('case',  <q-args>)
