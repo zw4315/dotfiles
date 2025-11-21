@@ -1,11 +1,13 @@
 " focus_task.vim - simple task timer for Vim
 "
 " Commands:
-"   :AddTask {minutes} [task name...]
+"   :Ft {minutes} [task name...]
+"   :Fc
+"   :AddTask {minutes} [task name...]   (长命令，兼容用)
 "   :CancelTask
 "
-" Statusline:
-"   set statusline+=%{FocusTaskStatus()}
+" Airline:
+"   自动把 FocusTaskStatus() 挂到 airline 的 X 区
 
 if exists('g:loaded_focus_task')
   finish
@@ -20,49 +22,17 @@ if !exists('*timer_start')
   finish
 endif
 
-let s:task_timer_id   = -1
-let s:flash_timer_id  = -1
-let s:task_end_time   = 0.0
-let s:task_name       = ''
-let s:flash_count     = 0
-let s:flash_on        = 0
+let s:task_timer_id  = -1
+let s:task_end_time  = 0.0
+let s:task_name      = ''
+
+" sliding notification
+let s:slide_timer_id = -1
+let s:slide_step     = 0
+let s:slide_full     = ''
+let s:slide_width    = 0
 
 " -------- statusline helper --------
-" -------- optional: integrate with vim-airline --------
-function! s:EnsureAirline() abort
-  " 没有 airline 就直接返回
-  if !exists('*airline#section#create_right')
-    return
-  endif
-
-  " 只初始化一次
-  if exists('g:focus_task_airline_inited') && g:focus_task_airline_inited
-    return
-  endif
-
-  " 如果原来有 X 区，前面插一个 FocusTaskStatus
-  if exists('g:airline_section_x')
-    if stridx(string(g:airline_section_x), 'FocusTaskStatus') < 0
-      let g:airline_section_x = airline#section#create_right(
-            \ ['%{FocusTaskStatus()}', g:airline_section_x]
-            \ )
-    endif
-  else
-    " 没有就单独建一个 X 区
-    let g:airline_section_x = airline#section#create_right(
-          \ ['%{FocusTaskStatus()}', 'filetype']
-          \ )
-  endif
-
-  let g:focus_task_airline_inited = 1
-
-  " 强制 airline 刷新状态栏
-  if exists(':AirlineRefresh')
-    silent! AirlineRefresh
-  endif
-endfunction
-
-
 function! s:UpdateStatus(remaining) abort
   if a:remaining < 0
     let l:rem = 0
@@ -83,47 +53,91 @@ function! s:UpdateStatus(remaining) abort
   redrawstatus
 endfunction
 
-" Public function for statusline
+" Public function for statusline / airline
 function! FocusTaskStatus() abort
   return get(g:, 'focus_task_status', '')
 endfunction
 
-" -------- flashing when finished --------
-function! s:StartFlash() abort
-  " stop previous flash if any
-  if s:flash_timer_id != -1
-    call timer_stop(s:flash_timer_id)
+" -------- sliding message when finished --------
+function! s:StartSlide() abort
+  " stop previous slide
+  if s:slide_timer_id != -1
+    call timer_stop(s:slide_timer_id)
+    let s:slide_timer_id = -1
   endif
-  let s:flash_count = 10        " 10 * 500ms = 5 seconds
-  let s:flash_on    = 0
-  let s:flash_timer_id = timer_start(500, function('s:OnFlash'), {'repeat': -1})
+
+  " build message
+  if s:task_name !=# ''
+    let l:msg = ' ⏰ DONE: ' . s:task_name . ' '
+  else
+    let l:msg = ' ⏰ DONE '
+  endif
+
+  " width = current columns
+  let s:slide_width = &columns > 0 ? &columns : 80
+
+  " pad both sides to let it slide in & out
+  let l:pad = repeat(' ', s:slide_width)
+  let s:slide_full = l:pad . l:msg . l:pad
+  let s:slide_step = 0
+
+  " slide speed (ms per step)
+  let s:slide_timer_id = timer_start(80, function('s:OnSlide'), {'repeat': -1})
 endfunction
 
-function! s:OnFlash(timer) abort
-  if s:flash_count <= 0
-    if s:flash_timer_id != -1
-      call timer_stop(s:flash_timer_id)
-      let s:flash_timer_id = -1
+function! s:OnSlide(timer) abort
+  if s:slide_width <= 0
+    let s:slide_width = &columns > 0 ? &columns : 80
+  endif
+
+  let l:max_start = strlen(s:slide_full) - s:slide_width
+
+  if s:slide_step > l:max_start
+    " done
+    if s:slide_timer_id != -1
+      call timer_stop(s:slide_timer_id)
+      let s:slide_timer_id = -1
     endif
     unlet! g:focus_task_status
     redrawstatus
     return
   endif
 
-  let s:flash_on = !s:flash_on
+  let g:focus_task_status = strpart(s:slide_full, s:slide_step, s:slide_width)
+  let s:slide_step += 1
+  redrawstatus
+endfunction
 
-  if s:flash_on
-    if s:task_name !=# ''
-      let g:focus_task_status = ' ⏰ DONE: ' . s:task_name
-    else
-      let g:focus_task_status = ' ⏰ DONE'
-    endif
-  else
-    let g:focus_task_status = ''
+" -------- airline integration (auto, on first task start) --------
+function! s:EnsureAirline() abort
+  " no airline
+  if !exists('*airline#section#create_right')
+    return
   endif
 
-  let s:flash_count -= 1
-  redrawstatus
+  " only once
+  if exists('g:focus_task_airline_inited') && g:focus_task_airline_inited
+    return
+  endif
+
+  if exists('g:airline_section_x')
+    " prepend our status if not already there
+    if stridx(string(g:airline_section_x), 'FocusTaskStatus') < 0
+      let g:airline_section_x = airline#section#create_right(
+            \ ['%{FocusTaskStatus()}', g:airline_section_x]
+            \ )
+    endif
+  else
+    let g:airline_section_x = airline#section#create_right(
+          \ ['%{FocusTaskStatus()}', 'filetype']
+          \ )
+  endif
+
+  let g:focus_task_airline_inited = 1
+
+  if exists(':AirlineRefresh')
+    silent! AirlineRefresh
+  endif
 endfunction
 
 " -------- main timer tick --------
@@ -141,8 +155,8 @@ function! s:OnTick(timer) abort
     unlet! g:focus_task_status
     redrawstatus
 
-    " flash a bit
-    call s:StartFlash()
+    " sliding notification
+    call s:StartSlide()
 
     echohl WarningMsg
     if s:task_name !=# ''
@@ -161,7 +175,7 @@ function! s:TaskStart(args) abort
   " only one timer at a time
   if s:task_timer_id != -1
     echohl WarningMsg
-    echom 'A task timer is already running. Use :CancelTask first.'
+    echom 'A task timer is already running. Use :Fc / :CancelTask first.'
     echohl None
     return
   endif
@@ -169,7 +183,8 @@ function! s:TaskStart(args) abort
   let l:parts = split(a:args)
   if empty(l:parts)
     echohl ErrorMsg
-    echom 'Usage: AddTask {minutes} [task name...]'
+    echom 'Usage: Ft {minutes} [task name...]'
+    echom '   or: AddTask {minutes} [task name...]'
     echohl None
     return
   endif
@@ -192,10 +207,10 @@ function! s:TaskStart(args) abort
 
   let s:task_name = empty(l:parts) ? '' : join(l:parts, ' ')
 
-  " stop any previous flash
-  if s:flash_timer_id != -1
-    call timer_stop(s:flash_timer_id)
-    let s:flash_timer_id = -1
+  " stop any previous slide
+  if s:slide_timer_id != -1
+    call timer_stop(s:slide_timer_id)
+    let s:slide_timer_id = -1
   endif
 
   let s:task_end_time = reltimefloat(reltime()) + l:minutes * 60.0
@@ -211,7 +226,7 @@ function! s:TaskStart(args) abort
   endif
   echohl None
 
-  " <<< 新加这一行：若有 airline，则自动接线并刷新
+  " auto hook into airline if available
   call s:EnsureAirline()
 endfunction
 
@@ -220,9 +235,9 @@ function! s:TaskCancel() abort
     call timer_stop(s:task_timer_id)
     let s:task_timer_id = -1
   endif
-  if s:flash_timer_id != -1
-    call timer_stop(s:flash_timer_id)
-    let s:flash_timer_id = -1
+  if s:slide_timer_id != -1
+    call timer_stop(s:slide_timer_id)
+    let s:slide_timer_id = -1
   endif
 
   unlet! g:focus_task_status
@@ -235,9 +250,12 @@ function! s:TaskCancel() abort
 endfunction
 
 " -------- user commands --------
-command! -nargs=+ AddTask    call s:TaskStart(<q-args>)
-command! -nargs=0 CancelTask call s:TaskCancel()
 
+" 短命令（日常用）
 command! -nargs=+ Ft call s:TaskStart(<q-args>)
 command! -nargs=0 Fc call s:TaskCancel()
+
+" 长命令（兼容 / 更易懂）
+command! -nargs=+ AddTask    call s:TaskStart(<q-args>)
+command! -nargs=0 CancelTask call s:TaskCancel()
 
