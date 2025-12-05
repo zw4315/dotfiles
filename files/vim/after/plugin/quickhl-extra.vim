@@ -1,8 +1,6 @@
 " =========================================================
-" QuickHL 增强：统计 + 相对/绝对跳转 + 当前索引
-" 依赖：t9md/vim-quickhl，且已提供以下 <Plug>：
-"   <Plug>(quickhl-manual-this-whole-word)
-"   <Plug>(quickhl-manual-reset)
+" QuickHL 增强：统计 + 相对/绝对跳转 + 当前索引（带行号）
+" 依赖：t9md/vim-quickhl
 " =========================================================
 
 " 统计当前词：总次数 + 第一/最后一行号，并设置搜索模式
@@ -48,7 +46,7 @@ function! QuickHLWordStats() abort
 endfunction
 
 
-" 只看“当前是第几个/总共多少个”
+" 只看“当前是第几个/总共多少个 + 当前行号”
 function! QuickHLCurrentIndex() abort
   if !exists('*searchcount')
     echo 'searchcount() not available'
@@ -69,7 +67,8 @@ function! QuickHLCurrentIndex() abort
   if l:sc.total == 0
     echo 'count: 0'
   else
-    echo l:sc.current . '/' . l:sc.total
+    let l:lnum = line('.')
+    echo l:sc.current . '/' . l:sc.total . ' line: ' . l:lnum
   endif
 endfunction
 
@@ -93,10 +92,11 @@ function! s:QuickHLGotoIndex(target) abort
     return 0
   endif
 
-  " 打印 index/total
+  " 跳到了目标位置，此时光标在该匹配处
   if exists('*searchcount')
-    let l:sc = searchcount({'recompute': 1, 'maxcount': 0})
-    echo l:sc.current . '/' . l:sc.total
+    let l:sc   = searchcount({'recompute': 1, 'maxcount': 0})
+    let l:lnum = line('.')
+    echo l:sc.current . '/' . l:sc.total . ' line: ' . l:lnum
   endif
 
   return 1
@@ -106,6 +106,8 @@ endfunction
 " 相对跳转：hj / hk
 "   dir =  1 : 向后
 "   dir = -1 : 向前
+"   无数字前缀：步长为 1
+"   有数字前缀：步长为 v:count1
 function! QuickHLJump(dir) abort
   if !exists('*searchcount')
     echo 'searchcount() not available'
@@ -137,8 +139,10 @@ function! QuickHLJump(dir) abort
     let l:target = l:total
   endif
 
+  " 目标和当前一样就不再 search，只打印信息
   if l:target == l:cur
-    echo l:cur . '/' . l:total
+    let l:lnum = line('.')
+    echo l:cur . '/' . l:total . ' line: ' . l:lnum
     return
   endif
 
@@ -189,7 +193,7 @@ nnoremap hh :call QuickHLWordStats()<CR><Plug>(quickhl-manual-this-whole-word)
 " HH：清空所有手动高亮
 nnoremap HH <Plug>(quickhl-manual-reset)
 
-" hc：只看当前是第几个 / 总共多少个
+" hc：只看当前是第几个 / 总共多少个 + 当前行号
 nnoremap hc :call QuickHLCurrentIndex()<CR>
 
 " hj / hk：相对跳转（支持数字前缀）
