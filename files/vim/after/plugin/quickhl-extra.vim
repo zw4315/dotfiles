@@ -191,7 +191,7 @@ endfunction
 nnoremap hh :call QuickHLWordStats()<CR><Plug>(quickhl-manual-this-whole-word)
 
 " HH：清空所有手动高亮
-nnoremap HH <Plug>(quickhl-manual-reset)
+nnoremap hx <Plug>(quickhl-manual-reset)
 
 " hc：只看当前是第几个 / 总共多少个 + 当前行号
 nnoremap hc :call QuickHLCurrentIndex()<CR>
