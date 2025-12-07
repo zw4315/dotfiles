@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+#
+# hfget - Reliable HuggingFace downloader for China mainland
+# Supports: mirror auto-switch, rate limit, resume, logging
+
+set -euo pipefail
+
+if [ $# -lt 1 ]; then
+  echo "用法: hfget <huggingface-url> [wget 参数...]"
+  exit 1
+fi
+
+URL="$1"
+shift || true
+
+# ---------------------------
+# 1. 自动替换镜像
+# ---------------------------
+MIRRORS=(
+  "hf-mirror.com"
+  "hf-mirror.baai.ac.cn"
+)
+
+FOUND_URL=""
+for m in "${MIRRORS[@]}"; do
+  CAND="${URL/huggingface.co/$m}"
+  if curl -s --connect-timeout 3 -I "$CAND" > /dev/null; then
+    FOUND_URL="$CAND"
+    break
+  fi
+done
+
+# 如果都没通，退回第一个镜像（通常能通）
+FOUND_URL="${FOUND_URL:-${URL/huggingface.co/${MIRRORS[0]}}}"
+
+echo "[hfget] Using mirror:"
+echo "   $FOUND_URL"
+
+# ---------------------------
+# 2. 默认限速
+# ---------------------------
+RATE="${HFGET_RATE:-300k}"
+echo "[hfget] 限速: $RATE"
+
+# ---------------------------
+# 3. 自动生成输出文件名
+# ---------------------------
+HAS_OUT=false
+for arg in "$@"; do
+  if [[ "$arg" = "-O" ]] || [[ "$arg" == --output-document=* ]]; then
+    HAS_OUT=true
+    break
+  fi
+done
+
+if ! $HAS_OUT; then
+  FNAME=$(basename "${FOUND_URL%%\?*}")
+  [ -z "$FNAME" ] && FNAME="download.bin"
+  OUT_ARGS=(-O "$FNAME")
+else
+  OUT_ARGS=()
+fi
+
+# ---------------------------
+# 4. 开始 wget 下载
+# ---------------------------
+wget --continue \
+     --limit-rate="$RATE" \
+     --timeout=10 \
+     --tries=0 \
+     --retry-connrefused \
+     -o hfget.log \
+     "${OUT_ARGS[@]}" \
+     "$FOUND_URL" \
+     "$@"
+
+echo "[hfget] 下载完成。"
+

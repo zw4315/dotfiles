@@ -57,12 +57,42 @@ link_vim_preserve_plugins() {
     done
 }
 
-# 5. 执行
+# 链接 scripts 下的可执行脚本到 ~/bin
+link_scripts() {
+  local scripts_dir="$DOTFILES/scripts"
+  local bin_dir="$HOME/bin"
+
+  [[ -d "$scripts_dir" ]] || return 0  # 没有 scripts 目录就跳过
+
+  mkdir -p "$bin_dir"
+
+  for path in "$scripts_dir/"*; do
+    [[ -f "$path" ]] || continue
+    local name
+    name=$(basename "$path")
+
+    # 用现有的 link_one 逻辑（会自动备份已有文件）
+    link_one "$path" "$bin_dir/$name"
+
+    # 确保脚本本身有执行权限（软链目标要有）
+    chmod +x "$path"
+  done
+
+  # 提示一下 PATH（可选，你的 bashrc 里可能已经加了）
+  if ! echo "$PATH" | grep -q "$HOME/bin"; then
+    echo '⚠ 提示: 请在你的 bashrc 中加入: export PATH="$HOME/bin:$PATH"'
+  fi
+}
+
+# 6. 执行
 sudo apt install clang-format -y
 sudo apt install ripgrep
 sudo apt install universal-ctags
 sudo apt install global cscope
 sudo apt install python3-pygments
+
 link_all
+link_scripts     # 链接 hfget 等脚本
+
 echo "✅ All dotfiles linked."
 
