@@ -4,8 +4,16 @@
 # 逻辑：
 # - 如果是在 WSL：从 /etc/resolv.conf 里拿 nameserver，当成 Win host IP
 # - 如果失败，就退回 127.0.0.1
+# 检测 WSL，并拿到 Windows host IP（给 WSL -> Win Clash 用）
 if grep -qi microsoft /proc/version 2>/dev/null; then
-    WSL_HOST_IP=$(grep -m1 nameserver /etc/resolv.conf 2>/dev/null | awk '{print $2}')
+    # 1. 优先用默认网关（WSL 里看到的 Win host IP）
+    WSL_HOST_IP=$(ip route | awk '/^default/ {print $3; exit}')
+
+    # 2. 如果没拿到，再退回到 resolv.conf（少数极端情况）
+    if [ -z "$WSL_HOST_IP" ]; then
+        WSL_HOST_IP=$(grep -m1 nameserver /etc/resolv.conf 2>/dev/null | awk '{print $2}')
+    fi
+
     [ -z "$WSL_HOST_IP" ] && WSL_HOST_IP="127.0.0.1"
 fi
 
