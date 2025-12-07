@@ -8,6 +8,8 @@
 	st = status
 	co = checkout
 	fap = fetch --all --prune
-	cia = commit --amend --no-edit
-	cim = commit -m
+	c   = commit
+	cm  = commit -m
+	ca  = commit --amend
+	can = commit --amend --no-edit
 	lg  = log --oneline --graph --decorate --all
