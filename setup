@@ -92,7 +92,6 @@ sudo apt install -y \
     global \
     cscope \
     python3-pygments \
-    python-is-python3 \
     pipx                  # 关于 python 的 cli tool such as dy-dlp 
 
 link_all
