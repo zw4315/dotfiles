@@ -116,26 +116,33 @@ if ! shopt -oq posix; then
   fi
 fi
 
- # ~/.bashrc 或 ~/.zshrc 中加入（只在无已有连接时启动）
+# load proxy profiles
+if [ -f "$HOME/.proxyrc" ]; then
+    . "$HOME/.proxyrc"
+fi
+
+# ~/.bashrc 或 ~/.zshrc 中加入（只在无已有连接时启动）
 # pgrep -f "ssh -D 1080" > /dev/null || ssh -D 1080 -N -f edward@43.129.192.176
 # export ALL_PROXY=socks5h://127.0.0.1:1080
-PROXY_IP="43.129.192.176"
-PROXY_PORT="8888"
+# PROXY_IP="43.129.192.176"
+# PROXY_PORT="8888"
 
-# 获取本机公网 IP（用 ipinfo.io，也可以换成其他 API）
-MY_PUBLIC_IP=$(curl -s ifconfig.me)
+# # 获取本机公网 IP（用 ipinfo.io，也可以换成其他 API）
+# MY_PUBLIC_IP=$(curl -s ifconfig.me)
 
-if [ "$MY_PUBLIC_IP" != "$PROXY_IP" ]; then
-    echo "option of proxy is avaliable in .bashrc"
-    #export http_proxy="http://$PROXY_IP:$PROXY_PORT"
-    #export https_proxy="http://$PROXY_IP:$PROXY_PORT"
-else
-    echo "跳过代理设置：代理 IP 与本机公网 IP 相同"
-fi
+# if [ "$MY_PUBLIC_IP" != "$PROXY_IP" ]; then
+#     echo "option of proxy is avaliable in .bashrc"
+#     export http_proxy="http://$PROXY_IP:$PROXY_PORT"
+#     export https_proxy="http://$PROXY_IP:$PROXY_PORT"
+# else
+#     echo "跳过代理设置：代理 IP 与本机公网 IP 相同"
+# fi
 
 
 # Created by `pipx` on 2025-07-18 04:46:17
-export PATH="$PATH:/home/edward/.local/bin"
+export PATH="$PATH:$HOME/.local/bin"
+# Google Dive 远端同步的任务， 做成脚本
+export PATH="$HOME/bin:$PATH"
 
 # for gtags
 export GTAGSLABEL='native-pygments'
