@@ -93,12 +93,3 @@ proxy_toggle() {
     esac
 }
 
-# 方便的 alias
-alias pls='proxy_list'
-alias puse='proxy_use'
-alias ptoggle='proxy_toggle'
-
-alias pjump='proxy_use jump'
-alias pclash='proxy_use clash'
-alias poff='proxy_use off'
-

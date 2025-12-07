@@ -10,3 +10,4 @@
 	fap = fetch --all --prune
 	cia = commit --amend --no-edit
 	cim = commit -m
+	lg  = log --oneline --graph --decorate --all
