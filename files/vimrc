@@ -52,6 +52,9 @@ let g:bookmark_highlight_lines = 1
 " ------------------------------
 call plug#begin('~/.vim/plugged')
 
+" switch btw header and source files 
+Plug 'vim-scripts/a.vim'
+
 " 高亮插件
 Plug 't9md/vim-quickhl'
 
