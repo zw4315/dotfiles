@@ -107,10 +107,16 @@ let $FZF_DEFAULT_COMMAND = 'rg --files --hidden --glob "!.git/*"'
 filetype plugin indent on
 syntax enable
 "set termguicolors
-set notermguicolors
+" set notermguicolors
 set t_Co=256
 colorscheme onedark
 "colorscheme gruvbox  " 可改为 gruvbox、nord、onedark 等
+set termguicolors       " 推荐开启，颜色更准
+colorscheme onedark
+
+" 让终端背景透明
+hi Normal guibg=NONE ctermbg=NONE
+hi NonText guibg=NONE ctermbg=NONE
 
 " ------------------------------
 " 快捷键配置
