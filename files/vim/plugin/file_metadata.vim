@@ -55,8 +55,8 @@ function! s:root(abs) abort
     return s:root_cache[start]
   endif
 
-  let s:root_cache[start] = getcwd()
-  return s:root_cache[start]
+  let s:root_cache[start] = ''
+  return ''
 endfunction
 
 function! s:base(abs) abort
@@ -80,6 +80,9 @@ function! s:abs_or_empty() abort
     if !empty(rp)
       let abs = fnamemodify(rp, ':p')
     endif
+  endif
+  if empty(s:root(abs))
+    return ''
   endif
   return s:is_meta_file(abs) ? '' : abs
 endfunction
