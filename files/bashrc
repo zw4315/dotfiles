@@ -97,6 +97,10 @@ if [ -f "$HOME/.proxyrc" ]; then
     . "$HOME/.proxyrc"
 fi
 
+# ---- VSCode Dark+ like ls colors (SAFE VERSION) ----
+export LS_COLORS="rs=0:di=1;38;5;75:ln=1;38;5;80:ex=1;38;5;114:fi=38;5;252:so=1;38;5;44:pi=38;5;178:bd=1;38;5;178:cd=1;38;5;178:or=1;38;5;203:mi=1;38;5;203"
+
+alias ls='ls --color=auto'
 
 # Created by `pipx` on 2025-07-18 04:46:17
 export PATH="$PATH:$HOME/.local/bin"
