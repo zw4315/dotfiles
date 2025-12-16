@@ -111,3 +111,4 @@ export PATH="$HOME/bin:$PATH"
 export GTAGSLABEL='native-pygments'
 export GTAGSCONF="$HOME/.global/gtags.conf"
 
+. "$HOME/.cargo/env"

@@ -48,6 +48,9 @@ alias bd2='ssh edward@101.126.23.57'
 alias centos='ssh edward@43.129.192.176'
 alias llm='ls -lt --reverse'
 
+# tui for task gtd
+alias tt="taskwarrior-tui"
+
 # 机型/环境相关 alias 建议放到 ~/.bash_aliases.local
 [ -f "$HOME/.bash_aliases.local" ] && . "$HOME/.bash_aliases.local"
 
