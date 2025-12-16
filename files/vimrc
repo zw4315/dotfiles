@@ -52,6 +52,9 @@ let g:bookmark_highlight_lines = 1
 " ------------------------------
 call plug#begin('~/.vim/plugged')
 
+" terminal in vim
+Plug 'voldikss/vim-floaterm'
+
 " switch btw header and source files 
 Plug 'vim-scripts/a.vim'
 
@@ -133,6 +136,14 @@ nnoremap <Leader>yf :let @" = expand('%:t')<CR>
 
 " 按 F8 切换 Tagbar
 nmap <F8> :TagbarToggle<CR> 
+
+" ===== Floaterm: toggle（不杀进程）
+nnoremap <leader>t :FloatermToggle<CR>
+tnoremap <leader>t <C-\><C-n>:FloatermToggle<CR>
+
+" ===== Floaterm: kill（真正退出）
+nnoremap <leader>tk :FloatermKill<CR>
+tnoremap <leader>tk <C-\><C-n>:FloatermKill<CR>
 
 " ------------------------------
 " 代码 静态检查工具
