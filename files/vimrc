@@ -1,4 +1,4 @@
-" ------------------------------
+
 " 基础设置
 " ------------------------------
 let mapleader = "\\"
@@ -145,6 +145,18 @@ tnoremap <leader>t <C-\><C-n>:FloatermToggle<CR>
 nnoremap <leader>tk :FloatermKill<CR>
 tnoremap <leader>tk <C-\><C-n>:FloatermKill<CR>
 
+nnoremap <leader>tK :FloatermKill!<CR>
+tnoremap <leader>tK <C-\><C-n>:FloatermKill!<CR>
+
+" ===== Floaterm: new / prev / next =====
+nnoremap <leader>tn :FloatermNew<CR>
+tnoremap <leader>tn <C-\><C-n>:FloatermNew<CR>
+
+nnoremap <leader>th :FloatermPrev<CR>
+tnoremap <leader>th <C-\><C-n>:FloatermPrev<CR>
+
+" nnoremap <leader>tl :FloatermNext<CR>
+tnoremap <leader>tl <C-\><C-n>:FloatermNext<CR>
 " ------------------------------
 " 代码 静态检查工具
 " ------------------------------
