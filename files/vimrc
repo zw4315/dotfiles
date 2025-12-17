@@ -138,25 +138,9 @@ nnoremap <Leader>yf :let @" = expand('%:t')<CR>
 nmap <F8> :TagbarToggle<CR> 
 
 " ===== Floaterm: toggle（不杀进程）
-nnoremap <leader>t :FloatermToggle<CR>
-tnoremap <leader>t <C-\><C-n>:FloatermToggle<CR>
+let g:zw_floaterm_prefix = '<leader>t'
+call zw#floaterm#setup()
 
-" ===== Floaterm: kill（真正退出）
-nnoremap <leader>tk :FloatermKill<CR>
-tnoremap <leader>tk <C-\><C-n>:FloatermKill<CR>
-
-nnoremap <leader>tK :FloatermKill!<CR>
-tnoremap <leader>tK <C-\><C-n>:FloatermKill!<CR>
-
-" ===== Floaterm: new / prev / next =====
-nnoremap <leader>tn :FloatermNew<CR>
-tnoremap <leader>tn <C-\><C-n>:FloatermNew<CR>
-
-nnoremap <leader>th :FloatermPrev<CR>
-tnoremap <leader>th <C-\><C-n>:FloatermPrev<CR>
-
-" nnoremap <leader>tl :FloatermNext<CR>
-tnoremap <leader>tl <C-\><C-n>:FloatermNext<CR>
 " ------------------------------
 " 代码 静态检查工具
 " ------------------------------
