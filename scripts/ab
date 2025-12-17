@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="${HOME}/mgnt/notes"
+pat='(?s)^[ \t]*inbox::\R.*?\R[ \t]*::inbox\s*$'
+
+if [[ "${1:-}" == "-l" || "${1:-}" == "--files" ]]; then
+  exec rg -l --hidden --glob='!.git/*' --glob='*.md' "$pat" "$root"
+else
+  exec rg -U --pcre2 -n --hidden --glob='!.git/*' --glob='*.md' "$pat" "$root"
+fi
+
