@@ -57,6 +57,32 @@ link_vim_preserve_plugins() {
     done
 }
 
+install_yank() {
+  local dst="$DOTFILES/scripts/yank"
+  local url="https://raw.githubusercontent.com/sunaku/home/master/bin/yank"
+
+  # 已存在就跳过（你也可以改成每次都更新）
+  if [[ -f "$dst" ]]; then
+    echo "✅ yank already exists at: $dst"
+  else
+    echo "⬇️  Downloading yank -> $dst"
+    mkdir -p "$(dirname "$dst")"
+
+    if command -v curl >/dev/null 2>&1; then
+      curl -fsSL "$url" -o "$dst"
+    elif command -v wget >/dev/null 2>&1; then
+      wget -qO "$dst" "$url"
+    else
+      echo "❌ Need curl or wget to download yank" >&2
+      exit 1
+    fi
+
+    chmod +x "$dst"
+    echo "✅ yank installed: $dst"
+  fi
+}
+
+
 # 链接 scripts 下的可执行脚本到 ~/bin
 link_scripts() {
   local scripts_dir="$DOTFILES/scripts"
@@ -98,6 +124,7 @@ sudo apt-get install -y \
   pipx
 
 link_all
+install_yank
 link_scripts     # 链接 hfget 等脚本
 
 echo "✅ All dotfiles linked."
