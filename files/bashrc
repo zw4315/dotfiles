@@ -111,4 +111,7 @@ export PATH="$HOME/bin:$PATH"
 export GTAGSLABEL='native-pygments'
 export GTAGSCONF="$HOME/.global/gtags.conf"
 
+# 简化 cd
+eval "$(zoxide init bash)"
+
 . "$HOME/.cargo/env"

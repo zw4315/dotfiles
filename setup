@@ -85,14 +85,17 @@ link_scripts() {
 }
 
 # 6. 执行
-sudo apt install -y \
-    clang-format \
-    ripgrep \
-    universal-ctags \
-    global \
-    cscope \
-    python3-pygments \
-    pipx                  # 关于 python 的 cli tool such as dy-dlp 
+# tools
+sudo apt-get update
+sudo apt-get install -y \
+  clang-format \
+  ripgrep \
+  universal-ctags \
+  global \
+  cscope \
+  python3-pygments \
+  zoxide \
+  pipx
 
 link_all
 link_scripts     # 链接 hfget 等脚本
