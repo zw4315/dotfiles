@@ -13,3 +13,12 @@
 	ca  = commit --amend
 	can = commit --amend --no-edit
 	lg  = log --oneline --graph --decorate --all
+# GitHub main
+[credential "https://github.com"]
+    helper =
+    helper = !command -v gh >/dev/null 2>&1 && gh auth git-credential
+
+# GitHub Gist
+[credential "https://gist.github.com"]
+    helper =
+    helper = !command -v gh >/dev/null 2>&1 && gh auth git-credential

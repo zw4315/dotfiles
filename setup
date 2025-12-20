@@ -114,6 +114,7 @@ link_scripts() {
 # tools
 sudo apt-get update
 sudo apt-get install -y \
+  fzf \
   clang-format \
   ripgrep \
   universal-ctags \

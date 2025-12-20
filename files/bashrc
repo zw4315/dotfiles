@@ -112,6 +112,10 @@ export GTAGSLABEL='native-pygments'
 export GTAGSCONF="$HOME/.global/gtags.conf"
 
 # 简化 cd
-eval "$(zoxide init bash)"
+command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init bash)"
 
-. "$HOME/.cargo/env"
+# Rust (cargo) env: only load if installed
+if [ -f "$HOME/.cargo/env" ]; then
+  . "$HOME/.cargo/env"
+fi
+
