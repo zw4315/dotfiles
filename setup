@@ -110,19 +110,32 @@ link_scripts() {
   fi
 }
 
-# 6. 执行
-# tools
-sudo apt-get update
-sudo apt-get install -y \
-  fzf \
-  clang-format \
-  ripgrep \
-  universal-ctags \
-  global \
-  cscope \
-  python3-pygments \
-  zoxide \
-  pipx
+has() { command -v "$1" >/dev/null 2>&1; }
+add() { has "$1" || pkgs+=("${2:-$1}"); }
+
+pkgs=()
+
+add fzf
+add clang-format
+add rg ripgrep
+add ctags universal-ctags
+add global global
+add cscope
+add pygmentize python3-pygments
+add pipx
+
+# 只有真的需要装东西时才 update（缺 apt 包 或 缺 zoxide）
+if ((${#pkgs[@]})) || ! has zoxide; then
+    sudo apt-get update
+fi
+
+((${#pkgs[@]})) && sudo apt-get install -y "${pkgs[@]}"
+
+# zoxide：优先 apt；apt 不存在/失败才 curl（workaround）
+if ! has zoxide; then
+    sudo apt-get install -y zoxide \
+          || curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash
+fi
 
 link_all
 install_yank
