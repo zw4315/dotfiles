@@ -1,145 +1,47 @@
 #!/bin/bash
+
 set -euo pipefail
 
-# 1. 检测 dotfiles 目录
-DOTFILES="${DOTFILES:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
-echo "Installing dotfiles from: $DOTFILES"
+# 1. Environment setup
+DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export DOTFILES
 
-# 2. 链接一个文件或目录（安全模式：不覆盖已有非软链）
-link_one() {
-    local src="$1"
-    local dst="$2"
+# 2. Load utilities
+if [[ -f "$DOTFILES/lib/utils.sh" ]]; then
+    source "$DOTFILES/lib/utils.sh"
+else
+    echo "Error: lib/utils.sh not found."
+    exit 1
+fi
 
-    # 如果已经是正确的软链，跳过
-    if [[ -L "$dst" && "$(readlink "$dst")" == "$src" ]]; then
-        echo "✅ $dst already linked"
-        return
-    fi
+# 3. Load configuration
+# Allow user to provide a custom config file
+CONFIG_FILE="${1:-$DOTFILES/config.sh}"
+if [[ -f "$CONFIG_FILE" ]]; then
+    source "$CONFIG_FILE"
+else
+    log_warn "Config file not found: $CONFIG_FILE. Running all modules by default."
+    MODULES=(links apt tools)
+fi
 
-    # 如果目标存在且不是软链，备份
-    if [[ -e "$dst" && ! -L "$dst" ]]; then
-        mv "$dst" "$dst.backup.$(date +%s)"
-        echo "💾 Backup $dst"
-    fi
-
-    ln -sfn "$src" "$dst"
-    echo "🔗 Linked $dst → $src"
-}
-
-# 3. 链接所有 dotfiles（保持结构）
-link_all() {
-    for path in "$DOTFILES/files"/*; do
-        local name
-        name="$(basename "$path")"
-
-        if [[ "$name" == "vim" ]]; then
-            # Vim 特殊处理：只拆分子目录链接，保留本地的 ~/.vim/plugged
-            link_vim_preserve_plugins "$path" "$HOME/.vim"
-        else
-            link_one "$path" "$HOME/.$name"
-        fi
-    done
-}
-
-# 4. 保留 ~/.vim/plugin，只软链其他内容
-link_vim_preserve_plugins() {
-    local src_root="$1"
-    local dst_root="$2"
-
-    mkdir -p "$dst_root"
-
-    for sub in "$src_root"/*; do
-        local base
-        base="$(basename "$sub")"
-
-        # 注意：~/.vim/plugged *不* 在 $src_root 里，所以不会被动到
-        link_one "$sub" "$dst_root/$base"
-    done
-}
-
-install_yank() {
-  local dst="$DOTFILES/scripts/yank"
-  local url="https://raw.githubusercontent.com/sunaku/home/master/bin/yank"
-
-  # 已存在就跳过（你也可以改成每次都更新）
-  if [[ -f "$dst" ]]; then
-    echo "✅ yank already exists at: $dst"
-  else
-    echo "⬇️  Downloading yank -> $dst"
-    mkdir -p "$(dirname "$dst")"
-
-    if command -v curl >/dev/null 2>&1; then
-      curl -fsSL "$url" -o "$dst"
-    elif command -v wget >/dev/null 2>&1; then
-      wget -qO "$dst" "$url"
+# 4. Run modules
+for module in "${MODULES[@]}"; do
+    module_file="$DOTFILES/modules/$module.sh"
+    if [[ -f "$module_file" ]]; then
+        log_info "--- Running module: $module ---"
+        # Source the module in a subshell or clear run_module function to avoid conflicts
+        # Using a function wrap in the module file is cleaner
+        (
+            source "$module_file"
+            if command -v run_module >/dev/null; then
+                run_module
+            else
+                log_error "Module $module does not define run_module function."
+            fi
+        )
     else
-      echo "❌ Need curl or wget to download yank" >&2
-      exit 1
+        log_error "Module file not found: $module_file"
     fi
+done
 
-    chmod +x "$dst"
-    echo "✅ yank installed: $dst"
-  fi
-}
-
-
-# 链接 scripts 下的可执行脚本到 ~/bin
-link_scripts() {
-  local scripts_dir="$DOTFILES/scripts"
-  local bin_dir="$HOME/bin"
-
-  [[ -d "$scripts_dir" ]] || return 0  # 没有 scripts 目录就跳过
-
-  mkdir -p "$bin_dir"
-
-  for path in "$scripts_dir/"*; do
-    [[ -f "$path" ]] || continue
-    local name
-    name=$(basename "$path")
-
-    # 用现有的 link_one 逻辑（会自动备份已有文件）
-    link_one "$path" "$bin_dir/$name"
-
-    # 确保脚本本身有执行权限（软链目标要有）
-    chmod +x "$path"
-  done
-
-  # 提示一下 PATH（可选，你的 bashrc 里可能已经加了）
-  if ! echo "$PATH" | grep -q "$HOME/bin"; then
-    echo '⚠ 提示: 请在你的 bashrc 中加入: export PATH="$HOME/bin:$PATH"'
-  fi
-}
-
-has() { command -v "$1" >/dev/null 2>&1; }
-add() { has "$1" || pkgs+=("${2:-$1}"); }
-
-pkgs=()
-
-add fzf
-add clang-format
-add rg ripgrep
-add ctags universal-ctags
-add global global
-add cscope
-add pygmentize python3-pygments
-add pipx
-
-# 只有真的需要装东西时才 update（缺 apt 包 或 缺 zoxide）
-if ((${#pkgs[@]})) || ! has zoxide; then
-    sudo apt-get update
-fi
-
-((${#pkgs[@]})) && sudo apt-get install -y "${pkgs[@]}"
-
-# zoxide：优先 apt；apt 不存在/失败才 curl（workaround）
-if ! has zoxide; then
-    sudo apt-get install -y zoxide \
-          || curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash
-fi
-
-link_all
-install_yank
-link_scripts     # 链接 hfget 等脚本
-
-echo "✅ All dotfiles linked."
-
+log_success "Dotfiles setup completed!"
