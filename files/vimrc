@@ -147,6 +147,11 @@ nnoremap <silent> <leader>x oinbox::<CR>::inbox<Esc>O
 " Insert 模式：可选（想在插入模式也能触发就留着）
 inoremap <silent> <leader>x <Esc>oinbox::<CR>::inbox<Esc>O
 
+" insert mode / F5 insert date and time
+inoremap <F5> <C-r>=strftime('%Y-%m-%d %H:%M:%S')<CR>
+
+" 最近打开过的文件（跨 session，来自 v:oldfiles）
+nnoremap <leader>o :History<CR>
 " ------------------------------
 " 代码 静态检查工具
 " ------------------------------
