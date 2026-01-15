@@ -1,6 +1,7 @@
 
 " 基础设置
 " ------------------------------
+set modelines=0
 let mapleader = "\\"
 set nocompatible
 set number
