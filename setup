@@ -35,6 +35,9 @@ link_all() {
         if [[ "$name" == "vim" ]]; then
             # Vim 特殊处理：只拆分子目录链接，保留本地的 ~/.vim/plugged
             link_vim_preserve_plugins "$path" "$HOME/.vim"
+        elif [[ "$name" == "nvim" ]]; then
+            mkdir -p "$HOME/.config"
+            link_one "$path" "$HOME/.config/nvim"
         else
             link_one "$path" "$HOME/.$name"
         fi
@@ -142,4 +145,3 @@ install_yank
 link_scripts     # 链接 hfget 等脚本
 
 echo "✅ All dotfiles linked."
-

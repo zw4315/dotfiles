@@ -2,17 +2,23 @@
 " Commands + <Plug> 映射；实现都在 autoload/zw/rg.vim
 
 if exists('g:loaded_zw_rg_fzf') | finish | endif
-let g:loaded_zw_rg_fzf = 1
 
 " ---- 依赖检查（可选，缺失时给出一次性提示） -------------------------------
 " Consider fzf.vim present if its autoload file is on &rtp
 if empty(globpath(&rtp, 'autoload/fzf/vim.vim'))
-  echohl WarningMsg | echom '[zw-rg] fzf.vim not on runtimepath (install via vim-plug)' | echohl None
+  if !exists('g:loaded_zw_rg_fzf_missing')
+    echohl WarningMsg
+    echom '[zw-rg] fzf.vim not on runtimepath (install fzf + fzf.vim).'
+    echohl None
+    let g:loaded_zw_rg_fzf_missing = 1
+  endif
   finish
 endif
 if !executable('rg')
   echohl WarningMsg | echom '[zw-rg] ripgrep (rg) not found in PATH.' | echohl None
 endif
+
+let g:loaded_zw_rg_fzf = 1
 
 " ---- Rg 搜索命令（调用 autoload/zw/rg.vim） -------------------------------
 command! -nargs=* Rg      call zw#rg#run('smart', <q-args>)
