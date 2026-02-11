@@ -12,6 +12,7 @@ APT_DEPS=(
   rg=ripgrep
   fdfind=fd-find
   git=git
+  tmux=tmux
 )
 
 # AppImage deps (cmd=repo:asset_x86_64:asset_arm64)
@@ -36,4 +37,5 @@ INSTALL_DEPS=auto
 MODULES=(
   path=1
   nvim=1
+  tmux=1
 )
