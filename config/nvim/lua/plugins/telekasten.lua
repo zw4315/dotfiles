@@ -8,14 +8,26 @@ return {
     lazy = true,
     cmd = { "Telekasten" },
     keys = {
-      { "<leader>zp", function() require("telekasten").panel() end, desc = "ZK Panel" },
-      { "<leader>zf", function() require("telekasten").find_notes() end, desc = "ZK Find Notes" },
-      { "<leader>zg", function() require("telekasten").search_notes() end, desc = "ZK Search Notes" },
-      { "<leader>zn", function() require("telekasten").new_note() end, desc = "ZK New Note" },
-      { "<leader>zl", function() require("telekasten").follow_link() end, desc = "ZK Follow Link" },
-      { "<leader>zt", function() require("telekasten").goto_today() end, desc = "ZK Today" },
-      { "<leader>zw", function() require("telekasten").goto_thisweek() end, desc = "ZK This Week" },
-      { "<leader>zc", "<cmd>Calendar<cr>", desc = "Calendar" },
+      -- Avoid LazyVim's <leader>z* mappings (zen/zoom) which can be `nowait`.
+      { "<leader>np", function() require("telekasten").panel() end, desc = "Notes Panel" },
+      { "<leader>nf", function() require("telekasten").find_notes() end, desc = "Notes Find" },
+      { "<leader>ng", function() require("telekasten").search_notes() end, desc = "Notes Search" },
+      { "<leader>nn", function() require("telekasten").new_note() end, desc = "Notes New" },
+      { "<leader>nl", function() require("telekasten").follow_link() end, desc = "Notes Follow Link" },
+      { "<leader>nt", function() require("telekasten").goto_today() end, desc = "Notes Today" },
+      { "<leader>nw", function() require("telekasten").goto_thisweek() end, desc = "Notes This Week" },
+      {
+        "<leader>nc",
+        function()
+          local tk = require("telekasten")
+          if type(tk.show_calendar) == "function" then
+            tk.show_calendar()
+          else
+            vim.cmd("Calendar")
+          end
+        end,
+        desc = "Notes Calendar",
+      },
     },
     dependencies = {
       "nvim-lua/plenary.nvim",
@@ -24,6 +36,10 @@ return {
     },
     opts = function()
       local notes_dir = vim.fn.expand(vim.env.ZK_NOTES_DIR or "~/mgnt/agenda")
+      vim.fn.mkdir(notes_dir, "p")
+      vim.fn.mkdir(notes_dir .. "/daily", "p")
+      vim.fn.mkdir(notes_dir .. "/weekly", "p")
+      vim.fn.mkdir(notes_dir .. "/templates", "p")
       return {
         home = notes_dir,
         dailies = notes_dir .. "/daily",
@@ -44,4 +60,3 @@ return {
     end,
   },
 }
-

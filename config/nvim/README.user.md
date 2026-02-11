@@ -63,8 +63,10 @@ LazyVim/本仓库常用外部依赖（建议安装）：
 
 常用操作：
 
-- `<leader>zt`：打开/创建今天的 daily note
-- `<leader>zc`：打开日历（在日历里选择日期并回车，会打开/创建当天 daily note）
-- `<leader>zp`：telekasten 面板
-- `<leader>zf`：查找笔记
-- `<leader>zg`：全文搜索
+说明：本仓库把 `<leader>` 设为 `\\`（见 `config/nvim/init.lua`）。
+
+- `<leader>nt`：打开/创建今天的 daily note
+- `<leader>nc`：打开日历（在日历里选择日期并回车，会打开/创建当天 daily note）
+- `<leader>np`：telekasten 面板
+- `<leader>nf`：查找笔记
+- `<leader>ng`：全文搜索
