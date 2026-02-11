@@ -1,18 +1,10 @@
 #!/usr/bin/env bash
 
-# Windows profile placeholder.
-# Add modules here later (powershell profile, git, terminal, etc.).
+# Windows profile (minimal).
+# Keep this file config-only and only list modules you want enabled on Windows.
 
 dotfiles_profile_apply() {
-  # Optional: Windows deps via winget (command -> winget Id)
-  # WINGET_DEPS=(
-  #   nvim=Neovim.Neovim
-  #   rg=BurntSushi.ripgrep.MSVC
-  #   git=Git.Git
-  # )
-
-  # Keep init.sh happy while the Windows profile is still a placeholder.
   cat <<'EOF'
-legacy=0
+gitconfig=1
 EOF
 }

@@ -1,1 +1,0 @@
-../../../../home/vim/autoload/zw/rg.vim

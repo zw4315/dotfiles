@@ -4,33 +4,26 @@
 
 > 这份清单以“能力”为中心，而不是以“文件”为中心：同一个能力可能由多个文件共同实现。
 
-## 1) 安装/引导（setup）
+## 1) 安装/引导（init.sh）
 
-现状实现：根目录 `setup`。
+现状实现：根目录 `init.sh` + `profiles/*.sh` + `modules/*.sh`。
 
-- [ ] `DOTFILES` 可指定安装源目录；默认取脚本所在目录
+- [ ] 入口：`./init.sh`（支持 `--dry-run`）
+- [ ] Profile：`DOTFILES_PROFILE` 选择 profile（默认自动探测）
+- [ ] Profile API：`dotfiles_profile_apply` 输出模块列表（每行一个 `name=value`）
 - [ ] 链接策略：若目标已是正确软链则跳过；若目标存在且不是软链则备份为 `*.backup.<epoch>`；最后 `ln -sfn`
-- [ ] `files/` 下所有条目会被链接到 `$HOME`（默认规则：`files/<name>` → `$HOME/.<name>`）
-- [ ] `vim` 特例：链接到 `~/.vim`，但不会动到 `~/.vim/plugged`（插件目录保留）
-- [ ] `nvim` 特例：链接到 `~/.config/nvim`
-- [ ] 依赖安装（Ubuntu/apt）：会按缺失项组装包列表再 `apt-get update/install`
-- [ ] 安装/兜底 `zoxide`：优先 apt，失败则走在线安装脚本
-- [ ] 安装 `yank`：若 `scripts/yank` 不存在则下载；存在则跳过
-- [ ] `scripts/` 下可执行文件链接到 `~/bin`，并确保源脚本 `chmod +x`
-- [ ] 安装后提示 PATH：若 `$HOME/bin` 不在 PATH，会提示加入 bashrc
+- [ ] 安装策略：每个模块自行按需安装依赖（Ubuntu 用 apt；少数模块会下载/编译）
 
 ## 2) Shell 环境（bash）
 
-对应文件：`files/bashrc`、`files/bash_aliases`、`files/proxyrc`。
+对应文件：`home/bashrc`、`home/profile`、`home/bash_aliases`、`home/proxyrc`。
 
 - [ ] 交互 shell 基础体验（PS1、history、completion）保留 Ubuntu 默认逻辑
 - [ ] 自动加载 `~/.bash_aliases`
 - [ ] 自动加载代理切换：若存在 `~/.proxyrc` 则 source
 - [ ] `ls` 配色（`LS_COLORS`）+ `alias ls='ls --color=auto'`
-- [ ] `GTAGSLABEL=native-pygments` + `GTAGSCONF=~/.global/gtags.conf`
-- [ ] 若安装了 `zoxide` 则启用 `zoxide init bash`
+- [ ] `GTAGSLABEL=native-pygments` + `GTAGSCONF=~/.global/gtags.conf`（由 `home/profile` 提供）
 - [ ] 若存在 `~/.cargo/env` 则加载 Rust 环境
-- [ ] `NVM`：在交互 shell 下，若 `nvm.sh` 不存在会尝试用 curl 安装，再加载 `nvm.sh` + completion
 - [ ] alias：`rm -i`（防误删）、`rg -i`（若有 rg）、若存在 `~/.bash_aliases.local` 则加载（机器私有）
 - [ ] 代理快捷键：`puse`/`plis`/`pjump`/`pclash`/`poff`
 - [ ] ssh 快捷键（多台机器）：`bd/bd2/yc/hd/centos`（这类建议未来迁到 local）
@@ -47,7 +40,7 @@
 
 ## 4) Git（基础体验）
 
-对应文件：`files/gitconfig`。
+对应文件：`home/gitconfig`。
 
 - [ ] 设置 `user.name/user.email`
 - [ ] `core.editor=vim`、`core.quotepath=false`
@@ -56,7 +49,7 @@
 
 ## 5) Tmux（剪贴板/终端能力）
 
-对应文件：`home/tmux.conf`（legacy 路径 `files/tmux.conf` 仍保留为软链接）。
+对应文件：`home/tmux.conf`。
 
 - [ ] 解绑 prefix+数字切窗默认行为，改为：数字键切 pane 并 `resize-pane -Z`
 - [ ] 允许 OSC52 passthrough：`allow-passthrough on` + `set-clipboard on`（配合 `scripts/yank`）
@@ -64,7 +57,7 @@
 
 ## 6) Vim（经典 Vim + 自定义插件能力）
 
-对应文件：`files/vimrc`、`files/vim/**`。
+对应文件：`home/vimrc`、`home/vim/**`。
 
 ### 6.1 基础编辑体验
 - [ ] leader：`\\`
@@ -82,48 +75,48 @@
 
 ### 6.3 自定义增强（本 repo 自带的 vimscript）
 
-quickhl 增强（`files/vim/after/plugin/quickhl-extra.vim`）：
+quickhl 增强（`home/vim/after/plugin/quickhl-extra.vim`）：
 - [ ] `hh`：统计当前词出现次数/首末行号，并高亮当前词
 - [ ] `hx`：清空高亮（README 里写的是 `HH`，以实现为准：当前映射是 `hx`）
 - [ ] `hc`：显示当前命中是第几个/总数 + 当前行号
 - [ ] `hj/hk`：在命中间相对跳转（支持数字前缀）
 - [ ] `hg`：跳到第 N 个命中（支持数字前缀）
 
-rg + fzf 增强（`files/vim/after/plugin/rg_fzf.vim` + `files/vim/autoload/zw/rg.vim`）：
+rg + fzf 增强（`home/vim/after/plugin/rg_fzf.vim` + `home/vim/autoload/zw/rg.vim`）：
 - [ ] `:Rg/:Rgcs/:RgExact/:Rgf`：ripgrep 结果进入 fzf 预览（bat 高亮）
 - [ ] `<leader>rfs`：跨文件替换（逐文件 y/n/a/q）
 - [ ] `<leader>rf`：当前 buffer 替换（`gc` 确认）
 
-Floaterm 快捷键统一（`files/vim/autoload/zw/floaterm.vim`）：
+Floaterm 快捷键统一（`home/vim/autoload/zw/floaterm.vim`）：
 - [ ] `g:zw_floaterm_prefix` 可配置，默认 `<leader>t`
 - [ ] 支持 normal/terminal mode 同一套按键：toggle/new/kill/prev/next
 
-Inbox 浮窗编辑（`files/vim/plugin/inbox_float.vim`）：
+Inbox 浮窗编辑（`home/vim/plugin/inbox_float.vim`）：
 - [ ] `:InboxTerm`：用 Floaterm 打开 `~/mgnt/notes/00-inbox.md`（可配置）
 - [ ] 默认映射：`<leader>i` 打开、`<leader>I` toggle（若支持）
 
-透明背景（`files/vim/plugin/transparent.vim` + `files/vim/autoload/transparent.vim`）：
+透明背景（`home/vim/plugin/transparent.vim` + `home/vim/autoload/transparent.vim`）：
 - [ ] `:ToggleTransparent` + `<F12>` 切换透明
 - [ ] `ColorScheme` 变更后会重新 apply（若处于透明状态）
 
-Focus task（`files/vim/plugin/focus_task.vim`）：
+Focus task（`home/vim/plugin/focus_task.vim`）：
 - [ ] `:Ft <minutes> [name...]` 启动倒计时，状态显示在 statusline/airline
 - [ ] `:Fc`/`:CancelTask` 取消（实现里提供多个命令别名）
 - [ ] 结束时滑动提示（timer 驱动）
 
-Markdown card 自动置顶（`files/vim/after/plugin/card_auto_top.vim`）：
+Markdown card 自动置顶（`home/vim/after/plugin/card_auto_top.vim`）：
 - [ ] 保存 `append.md/review.md/kanban.md` 时，将当前 card（`##` 区块）移动到文件顶部并规范空行
 
-文件元数据系统（`files/vim/plugin/file_metadata.vim`）：
+文件元数据系统（`home/vim/plugin/file_metadata.vim`）：
 - [ ] 以“项目根”（`.git` 或 `.root`）为基准，在 `<root>/.metadata/` 记录文件元信息
 - [ ] `:MetaList/:MetaDesc/:MetaPrune/:MetaMove` 等能力（用于列举/描述/清理/跟随重命名）
 
 ## 7) Neovim（lazy.nvim + 复用 Vim 增强）
 
-对应文件：`files/nvim/init.lua`。
+对应文件：`config/nvim/**`。
 
 - [ ] 通过 `runtimepath` 复用 `~/.vim` + `~/.vim/after` 的自定义 vimscript（与 Vim 行为尽量对齐）
-- [ ] keymaps/选项与 `files/vimrc` 基本一致（leader、快捷键、format-on-save 等）
+- [ ] keymaps/选项与 `home/vimrc` 基本一致（leader、快捷键、format-on-save 等）
 - [ ] 使用 `lazy.nvim` 管理插件，并尽量保持 Vim 侧插件等价
 - [ ] lazy.nvim 不存在时自动 `git clone`（首次启动自举）
 

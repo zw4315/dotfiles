@@ -24,7 +24,7 @@ Profiles:
   Each profile defines `dotfiles_profile_apply`, which prints enabled modules
   to stdout (one per line), e.g.:
     nvim=1
-    legacy=0
+    git=1
 EOF
 }
 

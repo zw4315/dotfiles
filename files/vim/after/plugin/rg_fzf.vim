@@ -1,1 +1,0 @@
-../../../home/vim/after/plugin/rg_fzf.vim

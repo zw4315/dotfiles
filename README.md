@@ -35,23 +35,20 @@ You can select a profile:
 Profiles select modules (table-driven) by editing `profiles/*.sh`:
 ```bash
 # e.g. profiles/ubuntu.sh
-MODULES=(
-  nvim=1
-  legacy=0
-)
+dotfiles_profile_apply() {
+  cat <<'EOF'
+nvim=1
+tmux=1
+EOF
+}
 ```
-
-### Option B: Legacy installer (kept for compatibility)
-
-The legacy installer is `./setup` (Ubuntu-focused). You can still run it directly, or enable it in your profile with `legacy=1`.
 
 ## Directory layout (current)
 
 - `config/nvim/`: Neovim config (XDG). Based on LazyVim starter. Linked to `~/.config/nvim` by `./init.sh`.
 - `home/`: root-level dotfiles (e.g. `home/bashrc` -> `~/.bashrc`, `home/profile` -> `~/.profile`, `home/gitconfig` -> `~/.gitconfig`).
-- `files/`: legacy dotfiles layout used by `./setup` (now mostly symlinks into `home/`).
 - `profiles/`: per-OS config that selects modules to run (e.g. `profiles/ubuntu.sh`).
-- `scripts/`: small helper scripts that can be linked to `~/bin` by the legacy installer.
+- `scripts/`: small helper scripts that can be linked to `~/.local/bin` by the `scripts` module.
 
 ## Notes
 

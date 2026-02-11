@@ -1,1 +1,0 @@
-../../../home/vim/plugin/file_metadata.vim

@@ -1,1 +1,0 @@
-../../../home/vim/plugin/inbox_float.vim
