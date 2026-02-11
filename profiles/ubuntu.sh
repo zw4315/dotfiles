@@ -12,7 +12,6 @@ APT_DEPS=(
   rg=ripgrep
   fdfind=fd-find
   git=git
-  tmux=tmux
 )
 
 # AppImage deps (cmd=repo:asset_x86_64:asset_arm64)
