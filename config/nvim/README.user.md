@@ -50,3 +50,21 @@ LazyVim/本仓库常用外部依赖（建议安装）：
 - `:ObsidianNew` 新建笔记
 
 如果你的 notes 目录不是 `~/mgnt/notes`，请修改 `config/nvim/lua/plugins/obsidian.lua` 里的 workspace 路径。
+
+## 4) 日历 + Zettelkasten / 日记联动（telekasten.nvim + calendar-vim）
+
+配置文件：
+
+- `config/nvim/lua/plugins/telekasten.lua`
+
+默认笔记目录：
+
+- `~/mgnt/agenda`（可用环境变量覆盖：`ZK_NOTES_DIR=/path/to/notes`）
+
+常用操作：
+
+- `<leader>zt`：打开/创建今天的 daily note
+- `<leader>zc`：打开日历（在日历里选择日期并回车，会打开/创建当天 daily note）
+- `<leader>zp`：telekasten 面板
+- `<leader>zf`：查找笔记
+- `<leader>zg`：全文搜索
