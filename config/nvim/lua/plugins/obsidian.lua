@@ -5,15 +5,18 @@ return {
     lazy = true,
     ft = "markdown",
     dependencies = { "nvim-lua/plenary.nvim" },
-    opts = {
-      workspaces = {
-        {
-          name = "notes",
-          path = vim.fn.expand("~/mgnt/notes"),
+    opts = function()
+      local notes_dir = vim.fn.expand(vim.env.OBSIDIAN_DIR or "~/mgnt/notes")
+      vim.fn.mkdir(notes_dir, "p")
+      return {
+        workspaces = {
+          {
+            name = "notes",
+            path = notes_dir,
+          },
         },
-      },
-      completion = { nvim_cmp = true },
-    },
+        completion = { nvim_cmp = true },
+      }
+    end,
   },
 }
-

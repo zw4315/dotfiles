@@ -7,36 +7,52 @@ return {
     "renerocksai/telekasten.nvim",
     lazy = true,
     cmd = { "Telekasten" },
-    keys = {
-      -- Avoid LazyVim's <leader>z* mappings (zen/zoom) which can be `nowait`.
-      -- Also avoid LazyVim's <leader>n (New File).
-      { "<leader>kp", function() require("telekasten").panel() end, desc = "Notes Panel" },
-      { "<leader>kf", function() require("telekasten").find_notes() end, desc = "Notes Find" },
-      { "<leader>kg", function() require("telekasten").search_notes() end, desc = "Notes Search" },
-      { "<leader>kn", function() require("telekasten").new_note() end, desc = "Notes New" },
-      { "<leader>kl", function() require("telekasten").follow_link() end, desc = "Notes Follow Link" },
-      { "<leader>kt", function() require("telekasten").goto_today() end, desc = "Notes Today" },
-      { "<leader>kw", function() require("telekasten").goto_thisweek() end, desc = "Notes This Week" },
-      {
-        "<leader>kc",
-        function()
-          local tk = require("telekasten")
-          if type(tk.show_calendar) == "function" then
-            tk.show_calendar()
-          else
-            vim.cmd("Calendar")
+    keys = function()
+      -- Avoid LazyVim's <leader>z (zen/zoom) and <leader>n (new file).
+      local notes_dir = vim.fn.expand(vim.env.ZK_NOTES_DIR or "~/mgnt/notes")
+
+      local function telescope_find_files()
+        require("telescope.builtin").find_files({
+          cwd = notes_dir,
+          hidden = true,
+          follow = true,
+        })
+      end
+
+      local function telescope_live_grep()
+        require("telescope.builtin").live_grep({
+          cwd = notes_dir,
+        })
+      end
+
+      local function tk_cmd(sub, fallback)
+        return function()
+          local ok = pcall(vim.cmd, "Telekasten " .. sub)
+          if not ok and fallback then
+            fallback()
           end
-        end,
-        desc = "Notes Calendar",
-      },
-    },
+        end
+      end
+
+      return {
+        { "<leader>kp", tk_cmd("panel"), desc = "Notes Panel" },
+        { "<leader>kt", tk_cmd("goto_today"), desc = "Notes Today" },
+        { "<leader>kw", tk_cmd("goto_thisweek"), desc = "Notes This Week" },
+        { "<leader>kn", tk_cmd("new_note"), desc = "Notes New" },
+        { "<leader>kl", tk_cmd("follow_link"), desc = "Notes Follow Link" },
+        { "<leader>kc", tk_cmd("show_calendar", function() vim.cmd("Calendar") end), desc = "Notes Calendar" },
+        -- Use Telescope for navigation/search (avoids Telekasten's "insert link" behavior in non-modifiable buffers).
+        { "<leader>kf", telescope_find_files, desc = "Notes Find" },
+        { "<leader>kg", telescope_live_grep, desc = "Notes Search" },
+      }
+    end,
     dependencies = {
       "nvim-lua/plenary.nvim",
       "nvim-telescope/telescope.nvim",
       "mattn/calendar-vim",
     },
     opts = function()
-      local notes_dir = vim.fn.expand(vim.env.ZK_NOTES_DIR or "~/mgnt/agenda")
+      local notes_dir = vim.fn.expand(vim.env.ZK_NOTES_DIR or "~/mgnt/notes")
       vim.fn.mkdir(notes_dir, "p")
       vim.fn.mkdir(notes_dir .. "/daily", "p")
       vim.fn.mkdir(notes_dir .. "/weekly", "p")

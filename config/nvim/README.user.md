@@ -59,7 +59,7 @@ LazyVim/本仓库常用外部依赖（建议安装）：
 
 默认笔记目录：
 
-- `~/mgnt/agenda`（可用环境变量覆盖：`ZK_NOTES_DIR=/path/to/notes`）
+- `~/mgnt/notes`（可用环境变量覆盖：`ZK_NOTES_DIR=/path/to/notes`）
 
 常用操作：
 
