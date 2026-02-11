@@ -63,7 +63,7 @@ LazyVim/本仓库常用外部依赖（建议安装）：
 
 常用操作：
 
-说明：本仓库把 `<leader>` 设为 `\\`（见 `config/nvim/init.lua`）。
+说明：本仓库把 `<leader>` 设为 `Space`（见 `config/nvim/init.lua`）。
 
 - `<leader>kt`：打开/创建今天的 daily note
 - `<leader>kc`：打开日历（在日历里选择日期并回车，会打开/创建当天 daily note）

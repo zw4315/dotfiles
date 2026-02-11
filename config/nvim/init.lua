@@ -1,6 +1,6 @@
 -- Set <leader> before LazyVim loads
-vim.g.mapleader = "\\"
-vim.g.maplocalleader = "\\"
+vim.g.mapleader = " "
+vim.g.maplocalleader = " "
 
 -- bootstrap lazy.nvim, LazyVim and your plugins
 require("config.lazy")
