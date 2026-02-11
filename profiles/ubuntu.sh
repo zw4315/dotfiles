@@ -17,6 +17,7 @@ gitconfig=1
 rg=1
 fd=1
 global=1
+rustup=1
 rust=1
 vim=1
 nvim=1
