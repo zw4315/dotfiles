@@ -25,7 +25,7 @@ cd dotfiles
 ./init.sh
 ```
 
-By default (Linux profile), the MVP only links `config/nvim` to `~/.config/nvim`.
+By default (Ubuntu profile), the MVP only links `config/nvim` to `~/.config/nvim`.
 
 You can select a profile:
 ```bash
@@ -34,7 +34,7 @@ You can select a profile:
 
 Profiles select modules (table-driven) by editing `profiles/*.sh`:
 ```bash
-# e.g. profiles/linux.sh
+# e.g. profiles/ubuntu.sh
 MODULES=(
   nvim=1
   legacy=0
@@ -47,9 +47,9 @@ The legacy installer is `./setup` (Ubuntu-focused). You can still run it directl
 
 ## Directory layout (current)
 
-- `config/nvim/`: Neovim config (XDG). Linked to `~/.config/nvim` by `./init.sh`.
+- `config/nvim/`: Neovim config (XDG). Based on LazyVim starter. Linked to `~/.config/nvim` by `./init.sh`.
 - `files/`: legacy dotfiles layout used by `./setup` (e.g. `files/vimrc`, `files/tmux.conf`).
-- `profiles/`: per-OS config that selects modules to run (e.g. `profiles/linux.sh`).
+- `profiles/`: per-OS config that selects modules to run (e.g. `profiles/ubuntu.sh`).
 - `scripts/`: small helper scripts that can be linked to `~/bin` by the legacy installer.
 
 ## Notes

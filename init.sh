@@ -17,7 +17,7 @@ Options:
 
 Environment variables (optional):
   DOTFILES             Dotfiles repo path (default: this directory)
-  DOTFILES_PROFILE     Profile name (linux|windows). Default: auto-detect
+  DOTFILES_PROFILE     Profile name (ubuntu|windows). Default: auto-detect
   DRY_RUN              1 to enable dry-run (same as --dry-run)
 
 Profiles:
@@ -30,10 +30,10 @@ detect_profile() {
   local u
   u="$(uname -s 2>/dev/null || echo unknown)"
   case "$u" in
-    Linux*) echo linux ;;
-    Darwin*) echo linux ;; # treat macOS as linux-profile for now
+    Linux*) echo ubuntu ;;
+    Darwin*) echo ubuntu ;; # treat all unix-like as ubuntu for now
     MINGW*|MSYS*|CYGWIN*) echo windows ;;
-    *) echo linux ;;
+    *) echo ubuntu ;;
   esac
 }
 
@@ -99,6 +99,13 @@ if ((${#MODULES[@]} == 0)); then
   die "No modules enabled in profile: $PROFILE_FILE"
 fi
 log "Modules:  ${MODULES[*]}"
+
+# ================ Main ============================
+
+# Install phase (platform-specific; driven by profile vars)
+# shellcheck source=/dev/null
+source "$DOTFILES/lib/install_deps.sh"
+dotfiles_install_deps "$PROFILE"
 
 for entry in "${MODULES[@]}"; do
   run_module_entry "$entry"

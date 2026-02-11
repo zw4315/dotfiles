@@ -1,2 +1,5 @@
 mutagen.yml.lock
 tmux*.log
+.nvimlog
+config/nvim.pre_lazyvim.*
+config/nvim/lazyvim.json

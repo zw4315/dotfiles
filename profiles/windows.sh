@@ -3,7 +3,13 @@
 # Windows profile placeholder.
 # Add modules here later (powershell profile, git, terminal, etc.).
 
-RUN_LEGACY=0
+# Optional: Windows deps via winget (command -> winget Id)
+# WINGET_DEPS=(
+#   nvim=Neovim.Neovim
+#   rg=BurntSushi.ripgrep.MSVC
+#   git=Git.Git
+# )
+
 MODULES=(
   # nvim=1
 )

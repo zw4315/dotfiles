@@ -1,74 +1,57 @@
-# 给用户看的 Neovim 使用说明（LazyVim 方案）
+# Neovim（LazyVim）新机器上手
 
-目标：在新机器上用 `nvim + LazyVim` 快速获得“开箱即用”的编辑体验，并增加“笔记双链/反向链接（backlinks）”能力。
+这份仓库会把 `config/nvim` 链接到你的 `~/.config/nvim`（见根目录 `init.sh` + `modules/nvim.sh`）。而 `config/nvim` 本身使用的是官方 **LazyVim starter**。
 
-> 说明：`./init.sh` 的 `nvim` 模块只负责把本仓库的 `config/nvim` 链接到 `~/.config/nvim`。因此你可以把 `config/nvim` 做成 LazyVim 结构，`init.sh` 不需要改。
+## 1) 安装（Ubuntu）
 
-## 1) 新机器最小准备（Linux）
-
-- 安装 `nvim`、`git`、`rg`（ripgrep）
-- 建议再装：`fd`（telescope 更好用）
-
-## 2) 安装（用本仓库链接配置）
-
-1. clone 本仓库到任意目录
-2. 确认 `profiles/linux.sh` 里启用了 `nvim=1`
-3. 执行：
+1. clone 本仓库
+2. 运行：
    - 预演：`./init.sh --dry-run`
-   - 真正执行：`./init.sh`
+   - 执行：`./init.sh`
 
-完成后，`~/.config/nvim` 会指向本仓库的 `config/nvim`。
+完成后：`~/.config/nvim` 会指向本仓库的 `config/nvim`。
 
-## 3) 把 `config/nvim` 变成 LazyVim（一次性动作）
+## 2) 第一次打开
 
-LazyVim 推荐用它的 “starter” 作为 `~/.config/nvim` 内容。
+- 直接运行 `nvim`
+- 按提示等待插件安装完成（LazyVim 会自动 bootstrap）
 
-如果你想让本仓库“默认就是 LazyVim”，做法是：
+LazyVim/本仓库常用外部依赖（建议安装）：
 
-- 用 LazyVim starter 的目录内容替换本仓库的 `config/nvim/`
-- 然后把你自己的定制都放在 `config/nvim/lua/plugins/*.lua`
+- `nvim`（LazyVim 对 Neovim 版本有要求；本仓库在 Ubuntu 上会在需要时用 AppImage 安装到 `~/.local/bin/nvim`）
+- `rg`（ripgrep）
+- `fd-find`（命令是 `fdfind`）
 
-之后打开 `nvim`，LazyVim 会自动 bootstrap 并提示安装/同步。
+默认 Ubuntu profile 会在检测到缺失依赖时自动用 `apt-get` 安装（根据 `profiles/ubuntu.sh` 的 `APT_DEPS` 显式映射）；如果你不希望自动安装，把 `profiles/ubuntu.sh` 里的 `INSTALL_DEPS=auto` 改成 `INSTALL_DEPS=0`（或直接删掉 `APT_DEPS`）。
 
-## 4) 示例：在 LazyVim 里加“笔记双链/backlinks”（obsidian.nvim）
+如果你安装了 AppImage 版 `nvim` 但 `nvim --version` 仍显示旧版本，通常是 PATH 优先级问题：请用 `~/.local/bin/nvim --version` 验证，并把 `~/.local/bin` 放到 PATH 前面。
 
-推荐插件：`epwalsh/obsidian.nvim`（偏 Obsidian 工作流：链接、backlinks、daily note 等）。
+本仓库默认会通过 `path` 模块把下面这行写入 `~/.profile` / `~/.bashrc`（只追加一次）：
 
-在 `config/nvim/lua/plugins/obsidian.lua` 新建一个文件，写入类似配置：
-
-```lua
-return {
-  {
-    "epwalsh/obsidian.nvim",
-    version = "*",
-    lazy = true,
-    ft = "markdown",
-    dependencies = { "nvim-lua/plenary.nvim" },
-    opts = {
-      workspaces = {
-        {
-          name = "notes",
-          path = vim.fn.expand("~/mgnt/notes"),
-        },
-      },
-      completion = { nvim_cmp = true },
-      -- 你也可以在这里设置 daily notes、templates、frontmatter 等
-    },
-  },
-}
+```sh
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
-打开 `nvim` 后执行 `:Lazy sync`，然后在 markdown 文件里常用命令：
+常用命令：
 
-- `:ObsidianBacklinks`：查看当前 note 的反向链接（backlinks）
-- `:ObsidianLinks`：查看当前 note 的外链
-- `:ObsidianQuickSwitch`：快速跳转到其他 note
-- `:ObsidianNew`：创建新 note
+- `:Lazy` 打开插件管理界面
+- `:Lazy sync` 同步插件
 
-如果你希望 notes 目录在不同机器/不同 OS 都一致，建议把 `~/mgnt/notes` 作为统一入口（Windows/WSL 则让 home 下也有同名目录，或在各自 profile 里调整 `path`）。
+## 3) 示例：笔记双链 / Backlinks（obsidian.nvim）
 
-## 5) 常见问题
+本仓库示例配置文件：
 
-- Q：我运行 `./init.sh` 后，LazyVim 的文件被覆盖了怎么办？
-  - A：`./init.sh` 会把 `config/nvim` 链接到 `~/.config/nvim`。如果你想用 LazyVim，就应该让 `config/nvim` 本身就是 LazyVim starter（见第 3 节），或临时把 `profiles/linux.sh` 里的 `nvim=1` 关掉，改为自己管理 `~/.config/nvim`。
+- `config/nvim/lua/plugins/obsidian.lua`
 
+默认假设你的笔记目录在：
+
+- `~/mgnt/notes`
+
+常用命令（在 markdown 里）：
+
+- `:ObsidianBacklinks` 查看反向链接
+- `:ObsidianLinks` 查看链接
+- `:ObsidianQuickSwitch` 快速切换笔记
+- `:ObsidianNew` 新建笔记
+
+如果你的 notes 目录不是 `~/mgnt/notes`，请修改 `config/nvim/lua/plugins/obsidian.lua` 里的 workspace 路径。
