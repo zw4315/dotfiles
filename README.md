@@ -48,8 +48,8 @@ The legacy installer is `./setup` (Ubuntu-focused). You can still run it directl
 ## Directory layout (current)
 
 - `config/nvim/`: Neovim config (XDG). Based on LazyVim starter. Linked to `~/.config/nvim` by `./init.sh`.
-- `home/`: root-level dotfiles (e.g. `home/bashrc` -> `~/.bashrc`, `home/profile` -> `~/.profile`, `home/bash_aliases` -> `~/.bash_aliases`, `home/proxyrc` -> `~/.proxyrc`).
-- `files/`: legacy dotfiles layout used by `./setup` (e.g. `files/vimrc`, `files/tmux.conf`).
+- `home/`: root-level dotfiles (e.g. `home/bashrc` -> `~/.bashrc`, `home/profile` -> `~/.profile`, `home/gitconfig` -> `~/.gitconfig`).
+- `files/`: legacy dotfiles layout used by `./setup` (now mostly symlinks into `home/`).
 - `profiles/`: per-OS config that selects modules to run (e.g. `profiles/ubuntu.sh`).
 - `scripts/`: small helper scripts that can be linked to `~/bin` by the legacy installer.
 

@@ -13,11 +13,14 @@ scripts=1
 curl=1
 wget=1
 git=1
+gitconfig=1
 rg=1
 fd=1
+global=1
+vim=1
 nvim=1
 tmux=1
 zoxide=1
-nvm=0
+nvm=1
 EOF
 }

@@ -88,7 +88,7 @@ module_main() {
 
   ensure_tmux
 
-  local src="$DOTFILES/files/tmux.conf"
+  local src="$DOTFILES/home/tmux.conf"
   local dst="$HOME/.tmux.conf"
 
   [[ -f "$src" ]] || die "tmux config not found: $src"

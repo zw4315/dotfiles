@@ -56,7 +56,7 @@
 
 ## 5) Tmux（剪贴板/终端能力）
 
-对应文件：`files/tmux.conf`。
+对应文件：`home/tmux.conf`（legacy 路径 `files/tmux.conf` 仍保留为软链接）。
 
 - [ ] 解绑 prefix+数字切窗默认行为，改为：数字键切 pane 并 `resize-pane -Z`
 - [ ] 允许 OSC52 passthrough：`allow-passthrough on` + `set-clipboard on`（配合 `scripts/yank`）
