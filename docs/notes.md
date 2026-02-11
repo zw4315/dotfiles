@@ -1,0 +1,1 @@
+- 安装 `nvim`、`git`、`rg`（ripgrep）建议再装：`fd`（telescope 更好用）
