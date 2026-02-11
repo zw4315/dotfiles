@@ -19,6 +19,7 @@ fd=1
 global=1
 rustup=1
 rust=1
+treesitter_cli=1
 vim=1
 nvim=1
 tmux=1
