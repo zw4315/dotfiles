@@ -38,18 +38,17 @@ ensure_tmux() {
   local url="https://github.com/tmux/tmux/releases/download/${desired_version}/${tar}"
 
   if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
-    log "🧪 (dry-run) Would run: sudo apt-get update"
-    log "🧪 (dry-run) Would run: sudo apt-get install -y ${build_deps[*]}"
     log "🧪 (dry-run) Would download: $url"
     log "🧪 (dry-run) Would build+install: ./configure --prefix=$HOME/.local && make && make install"
+    # shellcheck source=/dev/null
+    source "${DOTFILES:?}/lib/apt_helpers.sh"
+    dotfiles_apt_install_pkgs "${build_deps[@]}"
     return 0
   fi
 
-  command -v apt-get >/dev/null 2>&1 || die "apt-get not found; cannot install tmux build deps"
-  command -v sudo >/dev/null 2>&1 || die "sudo not found; cannot install tmux build deps"
-
-  sudo apt-get update
-  sudo apt-get install -y "${build_deps[@]}"
+  # shellcheck source=/dev/null
+  source "${DOTFILES:?}/lib/apt_helpers.sh"
+  dotfiles_apt_install_pkgs "${build_deps[@]}"
 
   local tmp
   tmp="$(mktemp -d)"
@@ -79,7 +78,7 @@ ensure_tmux() {
 
   log "✅ tmux: installed $installed (v$have)"
   if ! echo "${PATH:-}" | grep -q "$HOME/.local/bin"; then
-    log 'ℹ️  Tip: enable PATH module (or add): export PATH="$HOME/.local/bin:$PATH"'
+    log 'ℹ️  Tip: ensure PATH includes ~/.local/bin (e.g. via ~/.profile / dotfiles home/profile)'
   fi
 }
 

@@ -6,7 +6,7 @@
 # Installs only the wingetIds whose commands are missing.
 winget_install_missing_cmds() {
   if ! command -v winget >/dev/null 2>&1; then
-    die "winget not found. Install Winget, or disable INSTALL_DEPS, or install deps manually."
+    die "winget not found. Install Winget, or install deps manually."
   fi
 
   local missing_ids=()
@@ -33,4 +33,3 @@ winget_install_missing_cmds() {
     winget install --id "$wid" -e --accept-package-agreements --accept-source-agreements
   done
 }
-

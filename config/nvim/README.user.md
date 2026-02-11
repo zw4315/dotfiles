@@ -20,17 +20,12 @@ LazyVim/本仓库常用外部依赖（建议安装）：
 
 - `nvim`（LazyVim 对 Neovim 版本有要求；本仓库在 Ubuntu 上会在需要时用 AppImage 安装到 `~/.local/bin/nvim`）
 - `rg`（ripgrep）
-- `fd-find`（命令是 `fdfind`）
+- `fd`（Ubuntu 上 `fd-find` 的命令是 `fdfind`；本仓库的 `fd` 模块会在需要时创建 `~/.local/bin/fd` 作为兼容入口）
 
-默认 Ubuntu profile 会在检测到缺失依赖时自动用 `apt-get` 安装（根据 `profiles/ubuntu.sh` 的 `APT_DEPS` 显式映射）；如果你不希望自动安装，把 `profiles/ubuntu.sh` 里的 `INSTALL_DEPS=auto` 改成 `INSTALL_DEPS=0`（或直接删掉 `APT_DEPS`）。
+默认 Ubuntu profile 会启用对应的安装模块（如 `rg/fd/curl/wget` 等），缺少时会自动用 `apt-get` 安装。
 
 如果你安装了 AppImage 版 `nvim` 但 `nvim --version` 仍显示旧版本，通常是 PATH 优先级问题：请用 `~/.local/bin/nvim --version` 验证，并把 `~/.local/bin` 放到 PATH 前面。
-
-本仓库默认会通过 `path` 模块把下面这行写入 `~/.profile` / `~/.bashrc`（只追加一次）：
-
-```sh
-export PATH="$HOME/.local/bin:$PATH"
-```
+本仓库默认会通过 `bash` 模块把 `home/profile` 链接到 `~/.profile`，并在其中设置 `PATH`（包含 `~/.local/bin`）。
 
 常用命令：
 

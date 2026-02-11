@@ -6,7 +6,7 @@ My minimal configuration for a development environment.
 
 ### Option A: New incremental installer (recommended)
 
-This repo is migrating to an XDG-mirror layout (`config/`, later `home/` + `overlays/`). The new entrypoint is `init.sh`.
+This repo is migrating to an XDG-mirror layout (`config/`) plus `home/` (root-level dotfiles). The new entrypoint is `init.sh`.
 
 1. clone
 ```bash
@@ -48,6 +48,7 @@ The legacy installer is `./setup` (Ubuntu-focused). You can still run it directl
 ## Directory layout (current)
 
 - `config/nvim/`: Neovim config (XDG). Based on LazyVim starter. Linked to `~/.config/nvim` by `./init.sh`.
+- `home/`: root-level dotfiles (e.g. `home/bashrc` -> `~/.bashrc`, `home/profile` -> `~/.profile`, `home/bash_aliases` -> `~/.bash_aliases`, `home/proxyrc` -> `~/.proxyrc`).
 - `files/`: legacy dotfiles layout used by `./setup` (e.g. `files/vimrc`, `files/tmux.conf`).
 - `profiles/`: per-OS config that selects modules to run (e.g. `profiles/ubuntu.sh`).
 - `scripts/`: small helper scripts that can be linked to `~/bin` by the legacy installer.

@@ -37,7 +37,7 @@
 
 ## 3) 代理能力（proxyrc）
 
-对应文件：`files/proxyrc`、脚本：`scripts/run_gost.sh`（与 jump profile 配合）。
+对应文件：`home/proxyrc`、脚本：`scripts/run_gost`（与 jump profile 配合）。
 
 - [ ] WSL 探测：若是 WSL，优先通过默认路由拿 Windows host IP，失败再用 `/etc/resolv.conf` nameserver
 - [ ] Profile：`jump`（自建 gost 出口）、`clash`（本机或 Windows host 的 Clash）
@@ -133,8 +133,8 @@ Markdown card 自动置顶（`files/vim/after/plugin/card_auto_top.vim`）：
 
 - [ ] `scripts/yank`：OSC52 复制到终端/tmux/X11 剪贴板（tmux 配置已开启 passthrough）
 - [ ] `scripts/hfget`：HuggingFace 下载镜像自动切换 + 限速 + 断点续传（生成 `hfget.log`）
-- [ ] `scripts/run_gost.sh`：管理 gost 代理（start/stop/status/logs + 自动重启）
-- [ ] `scripts/sync_to_gdrive.sh`：rclone 同步到 gdrive（带备份目录与后缀）
+- [ ] `scripts/run_gost`：管理 gost 代理（start/stop/status/logs + 自动重启）
+- [ ] `scripts/sync_to_gdrive`：rclone 同步到 gdrive（带备份目录与后缀）
 - [ ] `scripts/ab`：在笔记目录中搜索 `inbox:: ... ::inbox` 块（支持列文件/打印行号）
 
 ## 9) 未来“测试系统”是否不切实际？

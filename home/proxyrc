@@ -1,0 +1,18 @@
+########## Proxy helpers ##########
+
+# This file is sourced by `~/.bashrc`. Keep it lightweight.
+# Complex logic lives in `proxy` (a script installed to your PATH).
+
+command -v proxy >/dev/null 2>&1 || return 0
+
+export PROXY_MODE="${PROXY_MODE:-off}"
+
+proxy_use() {
+  local name="${1:-off}"
+  eval "$(command proxy env "$name")"
+  command proxy status | sed -n '1p'
+}
+
+proxy_list() { command proxy list; }
+proxy_status() { command proxy status; }
+proxy_toggle() { eval "$(command proxy toggle-env)"; command proxy status | sed -n '1p'; }

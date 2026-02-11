@@ -1,0 +1,17 @@
+# ~/.profile: executed by the command interpreter for login shells.
+#
+# This file is intended to be POSIX-sh compatible.
+
+# Add user bins early.
+export PATH="$HOME/.local/bin:$PATH"
+export PATH="$HOME/bin:$PATH"
+
+# for gtags
+export GTAGSLABEL='native-pygments'
+export GTAGSCONF="$HOME/.global/gtags.conf"
+
+# Rust (cargo) env: only load if installed
+if [ -f "$HOME/.cargo/env" ]; then
+  . "$HOME/.cargo/env"
+fi
+

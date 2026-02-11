@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+
+usage() {
+  cat <<'EOF'
+Usage:
+  proxy list
+  proxy status
+  proxy env <off|jump|clash>
+  proxy toggle-env
+
+Notes:
+  - `proxy env ...` prints shell code. Use it like:
+      eval "$(proxy env clash)"
+      eval "$(proxy toggle-env)"
+EOF
+}
+
+is_wsl() { grep -qi microsoft /proc/version 2>/dev/null; }
+
+wsl_host_ip() {
+  local ip=""
+  ip="$(ip route 2>/dev/null | awk '/^default/ {print $3; exit}' || true)"
+  [[ -n "$ip" ]] || ip="$(grep -m1 nameserver /etc/resolv.conf 2>/dev/null | awk '{print $2}' || true)"
+  [[ -n "$ip" ]] || ip="127.0.0.1"
+  printf '%s' "$ip"
+}
+
+proxy_url_jump() {
+  printf '%s' "${PROXY_URL_JUMP:-http://43.129.192.176:8888}"
+}
+
+proxy_url_clash() {
+  local host="${PROXY_CLASH_HOST:-}"
+  local port="${PROXY_CLASH_PORT:-7890}"
+
+  if [[ -z "$host" ]]; then
+    if is_wsl; then
+      host="$(wsl_host_ip)"
+    else
+      host="127.0.0.1"
+    fi
+  fi
+
+  printf 'http://%s:%s' "$host" "$port"
+}
+
+proxy_url_for() {
+  local name="${1:-off}"
+  case "$name" in
+    off|"") return 1 ;;
+    jump) proxy_url_jump ;;
+    clash) proxy_url_clash ;;
+    *) die "Unknown proxy profile: $name" ;;
+  esac
+}
+
+cmd_list() {
+  printf 'Available proxy profiles:\n'
+  printf '  %-6s %s\n' jump "$(proxy_url_jump)"
+  printf '  %-6s %s\n' clash "$(proxy_url_clash)"
+  printf 'Current: %s\n' "${PROXY_MODE:-off}"
+}
+
+cmd_status() {
+  printf 'PROXY_MODE=%s\n' "${PROXY_MODE:-off}"
+  printf 'http_proxy=%s\n' "${http_proxy:-}"
+  printf 'https_proxy=%s\n' "${https_proxy:-}"
+  printf 'all_proxy=%s\n' "${all_proxy:-}"
+  printf 'no_proxy=%s\n' "${no_proxy:-}"
+}
+
+cmd_env() {
+  local name="${1:-off}"
+  if [[ -z "$name" || "$name" == "off" ]]; then
+    cat <<'EOF'
+unset http_proxy https_proxy all_proxy no_proxy
+export PROXY_MODE="off"
+EOF
+    return 0
+  fi
+
+  local url
+  url="$(proxy_url_for "$name")"
+  printf 'export http_proxy=%q\n' "$url"
+  printf 'export https_proxy=%q\n' "$url"
+  printf 'export all_proxy=%q\n' "$url"
+  printf 'export no_proxy=%q\n' 'localhost,127.0.0.1,::1'
+  printf 'export PROXY_MODE=%q\n' "$name"
+}
+
+cmd_toggle_env() {
+  local cur="${PROXY_MODE:-off}"
+  case "$cur" in
+    off|"") cmd_env jump ;;
+    jump) cmd_env clash ;;
+    clash) cmd_env off ;;
+    *) cmd_env off ;;
+  esac
+}
+
+main() {
+  local cmd="${1:-}"
+  case "$cmd" in
+    -h|--help|"") usage; exit 0 ;;
+    list) shift; cmd_list "$@" ;;
+    status) shift; cmd_status "$@" ;;
+    env) shift; cmd_env "${1:-}" ;;
+    toggle-env) shift; cmd_toggle_env ;;
+    *) usage >&2; die "Unknown command: $cmd" ;;
+  esac
+}
+
+main "$@"
+

@@ -21,12 +21,14 @@ Environment variables (optional):
   DRY_RUN              1 to enable dry-run (same as --dry-run)
 
 Profiles:
-  Each profile sets MODULES as a list of key=value pairs, e.g.
-    MODULES=( nvim=1 legacy=0 )
+  Each profile defines `dotfiles_profile_apply`, which prints enabled modules
+  to stdout (one per line), e.g.:
+    nvim=1
+    legacy=0
 EOF
 }
 
-detect_profile() {
+detect_os_profile() {
   local u
   u="$(uname -s 2>/dev/null || echo unknown)"
   case "$u" in
@@ -37,9 +39,10 @@ detect_profile() {
   esac
 }
 
-PROFILE="${DOTFILES_PROFILE:-$(detect_profile)}"
+PROFILE_NAME="${DOTFILES_PROFILE:-$(detect_os_profile)}"
 DRY_RUN="${DRY_RUN:-0}"
-MODULES=()
+
+PROFILE_PATH="$DOTFILES/profiles/${PROFILE_NAME}.sh"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -52,11 +55,18 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-PROFILE_FILE="$DOTFILES/profiles/${PROFILE}.sh"
-[[ -f "$PROFILE_FILE" ]] || die "Profile not found: $PROFILE_FILE"
+[[ -f "$PROFILE_PATH" ]] || die "Profile not found: $PROFILE_PATH"
 
-# shellcheck source=/dev/null
-source "$PROFILE_FILE"
+load_os_profile() {
+  # Ensure the function comes from the profile we load (not from the environment).
+  unset -f dotfiles_profile_apply 2>/dev/null || true
+
+  # shellcheck source=/dev/null
+  source "$PROFILE_PATH"
+
+  declare -F dotfiles_profile_apply >/dev/null 2>&1 \
+    || die "Profile must define dotfiles_profile_apply(): $PROFILE_PATH"
+}
 
 run_module_entry() {
   local entry="$1"
@@ -92,20 +102,21 @@ run_module_entry() {
   )
 }
 
+# Apply profile configuration (kept here so the main flow reads top-to-bottom).
+load_os_profile
+
+MODULES=()
+while IFS= read -r entry; do
+  [[ -n "$entry" ]] && MODULES+=("$entry")
+done < <(dotfiles_profile_apply)
+
 log "Dotfiles: $DOTFILES"
-log "Profile:  $PROFILE ($PROFILE_FILE)"
+log "Profile:  $PROFILE_NAME ($PROFILE_PATH)"
 log "Dry-run:  $DRY_RUN"
 if ((${#MODULES[@]} == 0)); then
-  die "No modules enabled in profile: $PROFILE_FILE"
+  die "No modules enabled in profile: $PROFILE_PATH"
 fi
 log "Modules:  ${MODULES[*]}"
-
-# ================ Main ============================
-
-# Install phase (platform-specific; driven by profile vars)
-# shellcheck source=/dev/null
-source "$DOTFILES/lib/install_deps.sh"
-dotfiles_install_deps "$PROFILE"
 
 for entry in "${MODULES[@]}"; do
   run_module_entry "$entry"

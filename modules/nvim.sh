@@ -4,6 +4,13 @@ module_main() {
   local value="${1:-1}"
   is_enabled "$value" || { log "⏭️  nvim disabled"; return 0; }
 
+  # Ensure a recent-enough nvim is installed (AppImage) before linking config.
+  # shellcheck source=/dev/null
+  source "${DOTFILES:?}/lib/appimage.sh"
+  local -a MIN_VERSIONS=( nvim=0.11.2 )
+  local -a VERSION_PATTERNS=( nvim='^NVIM v\([0-9]\+\.[0-9]\+\.[0-9]\+\).*' )
+  appimage_ensure "nvim=neovim/neovim:nvim-linux-x86_64.appimage:nvim-linux-arm64.appimage"
+
   local src="$DOTFILES/config/nvim"
   local dst="$HOME/.config/nvim"
 
