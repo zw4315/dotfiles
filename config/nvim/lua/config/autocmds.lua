@@ -29,8 +29,14 @@ vim.api.nvim_create_autocmd("FileType", {
       end
     end
 
-    vim.keymap.set("i", "<Tab>", actions.move_selection_next, { buffer = args.buf, silent = true })
-    vim.keymap.set("i", "<S-Tab>", actions.move_selection_previous, { buffer = args.buf, silent = true })
-    vim.keymap.set("i", "<C-i>", actions.move_selection_next, { buffer = args.buf, silent = true })
+    vim.keymap.set("i", "<Tab>", function()
+      actions.move_selection_next(args.buf)
+    end, { buffer = args.buf, silent = true })
+    vim.keymap.set("i", "<S-Tab>", function()
+      actions.move_selection_previous(args.buf)
+    end, { buffer = args.buf, silent = true })
+    vim.keymap.set("i", "<C-i>", function()
+      actions.move_selection_next(args.buf)
+    end, { buffer = args.buf, silent = true })
   end,
 })
