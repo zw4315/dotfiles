@@ -11,6 +11,35 @@ return {
       -- Avoid LazyVim's <leader>z (zen/zoom) and <leader>n (new file).
       local notes_dir = vim.fn.expand(vim.env.ZK_NOTES_DIR or "~/mgnt/notes")
 
+      local function ensure_dirs()
+        vim.fn.mkdir(notes_dir, "p")
+        vim.fn.mkdir(notes_dir .. "/daily", "p")
+        vim.fn.mkdir(notes_dir .. "/weekly", "p")
+        vim.fn.mkdir(notes_dir .. "/templates", "p")
+      end
+
+      local function edit_file(path)
+        ensure_dirs()
+        vim.cmd("edit " .. vim.fn.fnameescape(path))
+      end
+
+      local function daily_path(date_yyyy_mm_dd)
+        return notes_dir .. "/daily/" .. date_yyyy_mm_dd .. ".md"
+      end
+
+      local function goto_today()
+        edit_file(daily_path(os.date("%Y-%m-%d")))
+      end
+
+      local function weekly_path(iso_week_yyyy_wxx)
+        return notes_dir .. "/weekly/" .. iso_week_yyyy_wxx .. ".md"
+      end
+
+      local function goto_thisweek()
+        -- ISO week file name, e.g. 2026-W07.md
+        edit_file(weekly_path(vim.fn.strftime("%G-W%V")))
+      end
+
       local function telescope_find_files()
         require("telescope.builtin").find_files({
           cwd = notes_dir,
@@ -36,8 +65,9 @@ return {
 
       return {
         { "<leader>kp", tk_cmd("panel"), desc = "Notes Panel" },
-        { "<leader>kt", tk_cmd("goto_today"), desc = "Notes Today" },
-        { "<leader>kw", tk_cmd("goto_thisweek"), desc = "Notes This Week" },
+        -- Open the daily note directly (Telekasten's goto_* can behave like "insert link" in some contexts).
+        { "<leader>kt", goto_today, desc = "Notes Today" },
+        { "<leader>kw", goto_thisweek, desc = "Notes This Week" },
         { "<leader>kn", tk_cmd("new_note"), desc = "Notes New" },
         { "<leader>kl", tk_cmd("follow_link"), desc = "Notes Follow Link" },
         { "<leader>kc", tk_cmd("show_calendar", function() vim.cmd("Calendar") end), desc = "Notes Calendar" },
