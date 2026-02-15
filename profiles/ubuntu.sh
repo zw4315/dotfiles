@@ -27,5 +27,6 @@ zoxide=1
 nvm=1
 clang_format=1
 ctags=1
+lazygit=1
 EOF
 }

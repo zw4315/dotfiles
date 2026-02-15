@@ -26,6 +26,19 @@ return {
         folder = "daily",
       },
 
+      -- ✅ 控制 [[标题]] 自动创建时的文件名（note id）
+      note_id_func = function(title)
+        if not title or title == "" then
+          return tostring(os.time())
+        end
+        local s = title:lower()
+        s = s:gsub("%s+", "-")
+        s = s:gsub("[^%w%-]", "")
+        s = s:gsub("%-+", "-")
+        s = s:gsub("^%-", ""):gsub("%-$", "")
+        return s
+      end,
+
       completion = { nvim_cmp = has_cmp },
     }
   end,
