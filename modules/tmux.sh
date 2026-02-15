@@ -88,11 +88,18 @@ module_main() {
 
   ensure_tmux
 
+  # Link tmux.conf
   local src="$DOTFILES/home/tmux.conf"
   local dst="$HOME/.tmux.conf"
-
   [[ -f "$src" ]] || die "tmux config not found: $src"
   link_one "$src" "$dst"
+
+  # Link tmux_layout.sh to home for easy sourcing
+  local layout_src="$DOTFILES/home/tmux_layout.sh"
+  local layout_dst="$HOME/tmux_layout.sh"
+  [[ -f "$layout_src" ]] || die "tmux layout not found: $layout_src"
+  link_one "$layout_src" "$layout_dst"
+  log "💡 Usage: in tmux, press Ctrl-b then : and type 'source-file ~/tmux_layout.sh'"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
