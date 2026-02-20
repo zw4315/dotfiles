@@ -161,14 +161,147 @@ mihd() {
         return 1
       fi
       ;;
+    nodes|ls)
+      # 列出所有可用节点（带编号，按延迟排序）
+      local api_url="http://127.0.0.1:9090"
+      local proxies
+      proxies=$(curl -s "$api_url/proxies" 2>/dev/null)
+      if [[ -z "$proxies" ]]; then
+        echo "Failed to get nodes. Is mihomo running?"
+        return 1
+      fi
+      echo "=== Available Nodes (sorted by delay, use 'mihd use <number>' to switch) ==="
+      echo "$proxies" | python3 -c "
+import sys, json, re
+data = json.load(sys.stdin)
+
+# 排除的信息节点关键词
+SKIP_PATTERNS = [
+    r'剩余流量', r'套餐到期', r'过滤', r'如遇', r'欢迎加入',
+    r'永久地址', r'大陆访问', r'官方', r'Telegram', r'@',
+    r'V2NY', r'V2NAIUN', r'更新订阅', r'群组', r'失效'
+]
+
+def is_real_node(name):
+    '''判断是否是真正的代理节点（排除信息/提示节点）'''
+    for pattern in SKIP_PATTERNS:
+        if re.search(pattern, name):
+            return False
+    return True
+
+# 收集所有真实节点
+nodes = []
+for name, info in data.get('proxies', {}).items():
+    if info.get('type') in ['Vmess', 'Vless', 'Shadowsocks', 'Trojan', 'Socks5']:
+        if not is_real_node(name):
+            continue
+        history = info.get('history', [{}])
+        delay = history[-1].get('delay', 999999) if history else 999999
+        nodes.append((name, delay))
+
+# 按延迟排序（低的在前）
+nodes.sort(key=lambda x: x[1])
+
+# 打印
+for idx, (name, delay) in enumerate(nodes, 1):
+    delay_str = f'{delay}ms' if delay < 999999 else 'N/A'
+    print(f\"  [{idx:2d}] {name:35s} (delay: {delay_str})\")
+" 2>/dev/null || echo "$proxies" | grep -o '"name":"[^"]*"' | head -30
+      ;;
+    now|current)
+      # 显示当前使用的节点
+      local api_url="http://127.0.0.1:9090"
+      curl -s "$api_url/proxies/🚀%20节点选择" 2>/dev/null | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+now = data.get('now', 'N/A')
+print(f'Current node: {now}')
+print(f\"Use 'mihd nodes' to list all nodes\")
+print(f\"Use 'mihd use <number>' to switch\")
+" 2>/dev/null || echo "Failed to get current node. Is mihomo running?"
+      ;;
+    use)
+      # 切换到指定节点（支持数字索引或名称）
+      local target="${2:-}"
+      if [[ -z "$target" ]]; then
+        echo "Usage: mihd use <number>"
+        echo "Example: mihd use 1"
+        echo "Use 'mihd nodes' to see the list"
+        return 1
+      fi
+      
+      local api_url="http://127.0.0.1:9090"
+      local node_name=""
+      
+      # 如果是数字，获取对应节点名称
+      if [[ "$target" =~ ^[0-9]+$ ]]; then
+        node_name=$(curl -s "$api_url/proxies" 2>/dev/null | python3 -c "
+import sys, json, re
+data = json.load(sys.stdin)
+
+# 排除的信息节点关键词（与 nodes 命令保持一致）
+SKIP_PATTERNS = [
+    r'剩余流量', r'套餐到期', r'过滤', r'如遇', r'欢迎加入',
+    r'永久地址', r'大陆访问', r'官方', r'Telegram', r'@',
+    r'V2NY', r'V2NAIUN', r'更新订阅', r'群组', r'失效'
+]
+
+def is_real_node(name):
+    for pattern in SKIP_PATTERNS:
+        if re.search(pattern, name):
+            return False
+    return True
+
+nodes = []
+for name, info in data.get('proxies', {}).items():
+    if info.get('type') in ['Vmess', 'Vless', 'Shadowsocks', 'Trojan', 'Socks5']:
+        if not is_real_node(name):
+            continue
+        history = info.get('history', [{}])
+        delay = history[-1].get('delay', 999999) if history else 999999
+        nodes.append((name, delay))
+
+# 按延迟排序（与 nodes 命令保持一致）
+nodes.sort(key=lambda x: x[1])
+
+idx = int(sys.argv[1]) - 1
+if 0 <= idx < len(nodes):
+    print(nodes[idx][0])
+else:
+    print('INVALID_INDEX')
+" "$target" 2>/dev/null)
+        if [[ "$node_name" == "INVALID_INDEX" ]] || [[ -z "$node_name" ]]; then
+          echo "Invalid node number: $target"
+          echo "Use 'mihd nodes' to see available nodes"
+          return 1
+        fi
+      else
+        node_name="$target"
+      fi
+      
+      # 切换节点
+      local response
+      response=$(curl -s -X PUT "$api_url/proxies/🚀%20节点选择" \
+        -H "Content-Type: application/json" \
+        -d "{\"name\":\"$node_name\"}" 2>/dev/null)
+      if [[ $? -eq 0 ]]; then
+        echo "Switched to: $node_name"
+      else
+        echo "Failed to switch node. Is mihomo running?"
+        return 1
+      fi
+      ;;
     *)
-      echo "Usage: mihd {start|stop|force|status|logs|config}"
+      echo "Usage: mihd {start|stop|force|status|logs|config|nodes|now|use}"
       echo "  start   - Start mihomo daemon (default)"
       echo "  stop    - Stop mihomo daemon"
       echo "  force   - Force kill and restart (fix stuck issues)"
       echo "  status  - Check mihomo status"
       echo "  logs    - Tail mihomo logs"
       echo "  config  - Edit config with \$EDITOR (default: vim)"
+      echo "  nodes   - List all available nodes"
+      echo "  now     - Show current node"
+      echo "  use     - Switch to a specific node"
       ;;
   esac
 }
