@@ -1,0 +1,10 @@
+# Local configuration with sensitive data (API tokens, etc.)
+config.local.yaml
+
+# Runtime files (cache, logs, pid, downloaded proxies)
+cache.db
+*.pid
+geoip.metadb
+proxies/
+rules/
+*.log

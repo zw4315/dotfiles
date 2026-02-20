@@ -1,0 +1,125 @@
+# =============================================
+# Mihomo 配置文件模板
+# 
+# ⚠️  重要: 这个文件是模板，会被 git 追踪！
+#    请勿在此文件填写真实订阅 token！
+#
+# 📋 快速开始:
+#    1. cp config.yaml config.local.yaml
+#    2. 编辑 config.local.yaml，填入你的订阅链接
+#    3. config.local.yaml 会被 git 自动忽略
+#
+# =============================================
+
+# =============================================
+# 🔧 基础配置（通常无需修改）
+# =============================================
+# mixed-port: HTTP + SOCKS5 统一端口
+mixed-port: 7890
+
+# 外部控制器（Web 面板）
+external-controller: 127.0.0.1:9090
+
+# 允许局域网连接
+bind-address: '0.0.0.0'
+log-level: info
+ipv6: false
+unified-delay: true
+
+dns:
+  enable: true
+  listen: 0.0.0.0:1053
+  ipv6: false
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  default-nameserver:
+    - 223.5.5.5
+  nameserver:
+    - https://doh.pub/dns-query
+  fallback:
+    - https://1.1.1.1/dns-query
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+
+# =============================================
+# 🔒 代理配置（请在 config.local.yaml 中填写）
+# =============================================
+
+# 示例配置（复制到 config.local.yaml 并修改）:
+#
+# proxy-providers:
+#   myprovider:
+#     type: http
+#     url: "https://your-subscribe-url.com/api?token=YOUR_TOKEN"
+#     interval: 86400
+#     path: ./proxies/myprovider.yaml
+#     health-check:
+#       enable: true
+#       interval: 600
+#       url: http://www.gstatic.com/generate_204
+#     # 📝 排除香港节点（可选）
+#     # filter: "(?i)^(?!.*(?:港|hk|hongkong|hong kong))"
+#
+# proxies: []
+#
+# proxy-groups:
+#   - name: 🚀 节点选择
+#     type: select
+#     proxies:
+#       - ♻️ 自动选择
+#       - 🎯 全球直连
+#     use:
+#       - myprovider
+#
+#   - name: ♻️ 自动选择
+#     type: url-test
+#     use:
+#       - myprovider
+#     url: http://www.gstatic.com/generate_204
+#     interval: 300
+#     # 📝 排除香港节点（可选）
+#     # filter: "(?i)^(?!.*(?:港|hk|hongkong|hong kong))"
+#
+#   - name: 🎯 全球直连
+#     type: select
+#     proxies:
+#       - DIRECT
+#
+#   - name: 🐟 漏网之鱼
+#     type: select
+#     proxies:
+#       - 🚀 节点选择
+#       - 🎯 全球直连
+#     use:
+#       - myprovider
+
+# =============================================
+# 📝 当前配置（最小可用，无代理功能）
+# =============================================
+
+proxies: []
+
+proxy-groups:
+  - name: 🚀 节点选择
+    type: select
+    proxies:
+      - 🎯 全球直连
+
+  - name: 🎯 全球直连
+    type: select
+    proxies:
+      - DIRECT
+
+  - name: 🐟 漏网之鱼
+    type: select
+    proxies:
+      - 🎯 全球直连
+
+rules:
+  - DOMAIN-SUFFIX,local,🎯 全球直连
+  - IP-CIDR,127.0.0.0/8,🎯 全球直连,no-resolve
+  - IP-CIDR,192.168.0.0/16,🎯 全球直连,no-resolve
+  - IP-CIDR,10.0.0.0/8,🎯 全球直连,no-resolve
+  - GEOIP,CN,🎯 全球直连,no-resolve
+  - MATCH,🐟 漏网之鱼

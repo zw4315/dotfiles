@@ -29,5 +29,6 @@ clang_format=1
 ctags=1
 lazygit=1
 opencode=1
+mihomo=1
 EOF
 }

@@ -53,6 +53,126 @@ alias llm='ls -lt --reverse'
 # tui for task gtd
 alias tt="taskwarrior-tui"
 
+# 查看当前 IP 和地理位置
+alias whereme='curl -s http://ip-api.com/json'
+
+# mihomo 代理
+# mih  - 前台启动
+# mihd - 后台守护进程管理
+alias mih='mihomo -f "${HOME}/.config/mihomo/config.yaml"'
+
+# mihd 守护进程管理函数
+mihd() {
+  local cmd="${1:-start}"
+  local config_file work_dir pid_file
+
+  # 配置文件位置
+  config_file="${HOME}/.config/mihomo/config.yaml"
+
+  # 工作目录放在 ~/.local/share/，避免污染 repo
+  work_dir="${HOME}/.local/share/mihomo"
+  pid_file="${work_dir}/mihomo.pid"
+  
+  # 确保工作目录存在
+  mkdir -p "$work_dir"
+
+  case "$cmd" in
+    start|"")
+      if [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
+        echo "mihomo is already running (PID: $(cat "$pid_file"))"
+        return 1
+      fi
+      echo "Starting mihomo daemon..."
+      nohup mihomo -f "$config_file" -d "$work_dir" >/dev/null 2>&1 &
+      echo $! > "$pid_file"
+      echo "mihomo started (PID: $!)"
+      ;;
+    stop|kill)
+      if [[ -f "$pid_file" ]]; then
+        local pid
+        pid=$(cat "$pid_file")
+        if kill -0 "$pid" 2>/dev/null; then
+          kill "$pid" 2>/dev/null && echo "mihomo stopped (PID: $pid)"
+        fi
+        rm -f "$pid_file"
+      fi
+      # 额外清理任何残留的进程
+      local pids
+      pids=$(pgrep -x mihomo 2>/dev/null || true)
+      if [[ -n "$pids" ]]; then
+        echo "$pids" | xargs kill -9 2>/dev/null && echo "mihomo force stopped"
+      elif [[ ! -f "$pid_file" ]]; then
+        echo "mihomo is not running"
+      fi
+      ;;
+    force|restart)
+      # 强制重启：杀死所有进程 + 清理 pid 文件 + 重新启动
+      echo "Force restarting mihomo..."
+      # 1. 杀死所有 mihomo 进程
+      pkill -9 mihomo 2>/dev/null || true
+      # 2. 清理 pid 文件
+      rm -f "$pid_file"
+      # 3. 等待进程退出
+      sleep 1
+      # 4. 重新启动
+      echo "Starting mihomo daemon..."
+      nohup mihomo -f "$config_file" -d "$work_dir" >/dev/null 2>&1 &
+      echo $! > "$pid_file"
+      echo "mihomo force restarted (PID: $!)"
+      ;;
+    st|status)
+      if [[ -f "$pid_file" ]]; then
+        local pid
+        pid=$(cat "$pid_file")
+        if kill -0 "$pid" 2>/dev/null; then
+          echo "mihomo is running (PID: $pid)"
+          echo "Config: $config_file"
+          echo "Work dir: $work_dir"
+          # 显示端口监听情况
+          echo "Ports:"
+          if command -v ss >/dev/null 2>&1; then
+            ss -tln 2>/dev/null | grep -E ":7890|:7891|:9090" | head -3 || echo "  (use 'ss -tln' to check)"
+          elif command -v netstat >/dev/null 2>&1; then
+            netstat -tln 2>/dev/null | grep -E ":7890|:7891|:9090" | head -3 || echo "  (use 'netstat -tln' to check)"
+          else
+            echo "  7890 (HTTP/SOCKS5 mixed)"
+            echo "  9090 (Web controller)"
+          fi
+        else
+          echo "mihomo is not running (stale PID file: $pid_file)"
+        fi
+      else
+        local pids
+        pids=$(pgrep -x mihomo 2>/dev/null || true)
+        if [[ -n "$pids" ]]; then
+          echo "mihomo is running (PIDs: $pids) - no PID file found"
+        else
+          echo "mihomo is not running"
+        fi
+      fi
+      ;;
+    config|edit)
+      # 打开配置文件进行编辑
+      local config_file="${HOME}/.config/mihomo/config.yaml"
+      if [[ -f "$config_file" ]]; then
+        ${EDITOR:-vim} "$config_file"
+      else
+        echo "Config not found: $config_file"
+        return 1
+      fi
+      ;;
+    *)
+      echo "Usage: mihd {start|stop|force|status|logs|config}"
+      echo "  start   - Start mihomo daemon (default)"
+      echo "  stop    - Stop mihomo daemon"
+      echo "  force   - Force kill and restart (fix stuck issues)"
+      echo "  status  - Check mihomo status"
+      echo "  logs    - Tail mihomo logs"
+      echo "  config  - Edit config with \$EDITOR (default: vim)"
+      ;;
+  esac
+}
+
 # 机型/环境相关 alias 建议放到 ~/.bash_aliases.local
 [ -f "$HOME/.bash_aliases.local" ] && . "$HOME/.bash_aliases.local"
 
