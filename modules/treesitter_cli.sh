@@ -9,12 +9,28 @@ ensure_treesitter_build_deps() {
 
 ensure_cargo() {
   command -v cargo >/dev/null 2>&1 && return 0
-  [[ -x "$HOME/.cargo/bin/cargo" ]] && return 0
-  if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
-    log "ℹ️  tree-sitter-cli: cargo not found (dry-run). Enable rustup=1 to install Rust, then re-run."
-    return 1
+
+  # 检查是否已安装但未在 PATH 中
+  if [[ -x "$HOME/.cargo/bin/cargo" ]]; then
+    export PATH="$HOME/.cargo/bin:$PATH"
+    return 0
   fi
-  die "cargo not found. Enable rustup=1 (or install Rust) and open a new shell so cargo is on PATH."
+
+  log "📦 tree-sitter-cli: cargo not found, installing rustup first..."
+  # shellcheck source=/dev/null
+  source "${DOTFILES:?}/modules/rustup.sh"
+  module_main 1
+
+  # 重新检查 cargo 是否可用
+  if command -v cargo >/dev/null 2>&1; then
+    return 0
+  fi
+  if [[ -x "$HOME/.cargo/bin/cargo" ]]; then
+    export PATH="$HOME/.cargo/bin:$PATH"
+    return 0
+  fi
+
+  die "cargo installation failed"
 }
 
 ensure_tree_sitter_cli() {
