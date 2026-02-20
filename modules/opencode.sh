@@ -14,9 +14,9 @@ ensure_opencode() {
   fi
 
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL https://opencode.ai/install | bash
+    curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
   elif command -v wget >/dev/null 2>&1; then
-    wget -qO- https://opencode.ai/install | bash
+    wget -qO- https://opencode.ai/install | bash -s -- --no-modify-path
   else
     die "Need curl or wget to install opencode"
   fi
