@@ -21,6 +21,8 @@ ensure_opencode() {
     die "Need curl or wget to install opencode"
   fi
 
+  # 安装后需要更新 PATH 才能找到 opencode
+  export PATH="$HOME/.opencode/bin:$PATH"
   command -v opencode >/dev/null 2>&1 || die "opencode install failed"
   log "✅ opencode: installed"
 }
