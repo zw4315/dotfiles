@@ -4,6 +4,10 @@ return {
   "nvim-neo-tree/neo-tree.nvim",
   opts = {
     filesystem = {
+      follow_current_file = {
+        enabled = true, -- 自动定位当前文件
+        leave_dirs_open = false, -- 是否保持目录展开
+      },
       filtered_items = {
         visible = true, -- 显示隐藏文件
         show_hidden_count = true,
