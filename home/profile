@@ -2,15 +2,12 @@
 #
 # This file is intended to be POSIX-sh compatible.
 
-# Add user bins early.
+# Add user bins early (common PATH for all tools installed to user directory)
 export PATH="$HOME/.local/bin:$PATH"
 export PATH="$HOME/bin:$PATH"
 
-# for gtags
-export GTAGSLABEL='native-pygments'
-export GTAGSCONF="$HOME/.global/gtags.conf"
-
-# Optional profile drop-ins
+# Load all software-specific configurations from profile.d
+# Each module installs its own config file here
 if [ -d "$HOME/.profile.d" ]; then
   for f in "$HOME/.profile.d/"*.sh; do
     [ -e "$f" ] || continue
@@ -31,4 +28,3 @@ if [ -n "${BASH_VERSION:-}" ]; then
       ;;
   esac
 fi
-. "$HOME/.cargo/env"

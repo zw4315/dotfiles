@@ -21,16 +21,25 @@ ensure_opencode() {
     die "Need curl or wget to install opencode"
   fi
 
-  # 安装后需要更新 PATH 才能找到 opencode
-  export PATH="$HOME/.opencode/bin:$PATH"
   command -v opencode >/dev/null 2>&1 || die "opencode install failed"
   log "✅ opencode: installed"
+}
+
+link_profile_d_config() {
+  local src="${DOTFILES:?}/home/profile.d/opencode.sh"
+  local dst_dir="$HOME/.profile.d"
+  local dst="$dst_dir/opencode.sh"
+  
+  [[ -f "$src" ]] || die "opencode profile snippet not found: $src"
+  ensure_dir "$dst_dir"
+  link_one "$src" "$dst"
 }
 
 module_main() {
   local value="${1:-1}"
   is_enabled "$value" || { log "⏭️  opencode disabled"; return 0; }
   ensure_opencode
+  link_profile_d_config
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

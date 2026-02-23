@@ -19,12 +19,23 @@ link_global_config() {
   link_one "$src" "$dst"
 }
 
+link_profile_d_config() {
+  local src="${DOTFILES:?}/home/profile.d/gtags.sh"
+  local dst_dir="$HOME/.profile.d"
+  local dst="$dst_dir/gtags.sh"
+  
+  [[ -f "$src" ]] || die "gtags profile snippet not found: $src"
+  ensure_dir "$dst_dir"
+  link_one "$src" "$dst"
+}
+
 module_main() {
   local value="${1:-1}"
   is_enabled "$value" || { log "⏭️  global disabled"; return 0; }
 
   ensure_global_installed
   link_global_config
+  link_profile_d_config
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
