@@ -1,5 +1,32 @@
 #!/usr/bin/env bash
+# 20-editors.sh - 编辑器配置模块
+# 配置 Vim 和安装 Treesitter CLI
 
+# Vim 配置
+link_vimrc() {
+  local src="${DOTFILES:?}/home/vimrc"
+  local dst="$HOME/.vimrc"
+  [[ -f "$src" ]] || die "vimrc not found: $src"
+  link_one "$src" "$dst"
+}
+
+link_vim_dir_preserve_plugged() {
+  local src_root="${DOTFILES:?}/home/vim"
+  local dst_root="$HOME/.vim"
+
+  [[ -d "$src_root" ]] || die "vim dir not found: $src_root"
+  ensure_dir "$dst_root"
+
+  local sub base
+  for sub in "$src_root"/*; do
+    [[ -e "$sub" ]] || continue
+    base="$(basename "$sub")"
+    [[ "$base" == "plugged" ]] && continue
+    link_one "$sub" "$dst_root/$base"
+  done
+}
+
+# Treesitter CLI 安装
 ensure_treesitter_build_deps() {
   log "📦 tree-sitter-cli: ensuring build deps (apt)"
   # shellcheck source=/dev/null
@@ -59,14 +86,47 @@ ensure_tree_sitter_cli() {
   log "✅ tree-sitter-cli: installed"
 }
 
+# Neovim
+ensure_nvim() {
+  # Ensure a recent-enough nvim is installed (AppImage) before linking config.
+  # shellcheck source=/dev/null
+  source "${DOTFILES:?}/lib/appimage.sh"
+  local -a MIN_VERSIONS=( nvim=0.11.2 )
+  local -a VERSION_PATTERNS=( nvim='^NVIM v\([0-9]\+\.[0-9]\+\.[0-9]\+\).*' )
+  appimage_ensure "nvim=neovim/neovim:nvim-linux-x86_64.appimage:nvim-linux-arm64.appimage"
+
+  local src="$DOTFILES/config/nvim"
+  local dst="$HOME/.config/nvim"
+
+  [[ -d "$src" ]] || die "nvim config not found: $src"
+
+  ensure_dir "$HOME/.config"
+  link_one "$src" "$dst"
+  log "✅ nvim: installed and configured"
+}
+
 module_main() {
   local value="${1:-1}"
-  is_enabled "$value" || { log "⏭️  treesitter_cli disabled"; return 0; }
+  is_enabled "$value" || { log "⏭️  editors disabled"; return 0; }
 
+  log "🔧 Setting up editors..."
+  
+  # Vim 配置
+  log "📦 Configuring Vim..."
+  link_vimrc
+  link_vim_dir_preserve_plugged
+  
+  # Neovim
+  log "📦 Configuring Neovim..."
+  ensure_nvim
+  
+  # Treesitter CLI
+  log "📦 Installing Treesitter CLI..."
   ensure_treesitter_build_deps
   ensure_tree_sitter_cli
-
-  log 'ℹ️  If your current shell can’t find `tree-sitter`, run: source ~/.profile  &&  hash -r'
+  
+  log "✅ Editors setup complete"
+  log "ℹ️  If your current shell can't find \`tree-sitter\`, run: source ~/.profile  &&  hash -r"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

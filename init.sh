@@ -6,25 +6,46 @@ DOTFILES="${DOTFILES:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 # shellcheck source=/dev/null
 source "$DOTFILES/lib/common.sh"
 
-usage() {
+# Preset 选择（默认 dev）
+PRESET="dev"
+DRY_RUN="${DRY_RUN:-0}"
+
+show_brief_usage() {
   cat <<'EOF'
-Usage:
-  ./init.sh [options]
+Usage: ./init.sh [PRESET] [options]
+
+Presets:
+  --min       最小安装 (core + editors + dev-env)
+  --dev       开发完整 (默认)
+  --full      全部安装
+
+Run './init.sh --help' for full usage.
+EOF
+}
+
+show_full_help() {
+  cat <<'EOF'
+Usage: ./init.sh [PRESET] [options]
+
+Presets:
+  --min       最小安装 (core + editors + dev-env)
+  --dev       开发完整 (默认，包含 dev-tools)
+  --full      全部安装 (包含可选组件)
 
 Options:
-  --dry-run            Print actions without changing files
-  -h, --help           Show this help
+  --dry-run   预览更改
+  --help      显示帮助
 
-Environment variables (optional):
+Examples:
+  ./init.sh --min           # 最小安装
+  ./init.sh --dev           # 开发完整（默认）
+  ./init.sh --full          # 全部安装
+  ./init.sh --min --dry-run # 预览最小安装
+
+Environment variables:
   DOTFILES             Dotfiles repo path (default: this directory)
   DOTFILES_PROFILE     Profile name (ubuntu|windows). Default: auto-detect
   DRY_RUN              1 to enable dry-run (same as --dry-run)
-
-Profiles:
-  Each profile defines `dotfiles_profile_apply`, which prints enabled modules
-  to stdout (one per line), e.g.:
-    nvim=1
-    git=1
 EOF
 }
 
@@ -40,17 +61,25 @@ detect_os_profile() {
 }
 
 PROFILE_NAME="${DOTFILES_PROFILE:-$(detect_os_profile)}"
-DRY_RUN="${DRY_RUN:-0}"
-
 PROFILE_PATH="$DOTFILES/profiles/${PROFILE_NAME}.sh"
 
+# 解析参数
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --min|--minimal) PRESET="minimal"; shift ;;
+    --dev|--develop) PRESET="dev"; shift ;;
+    --full|--complete) PRESET="full"; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
-    -h|--help) usage; exit 0 ;;
-    *)
-      usage >&2
-      die "Unknown option: $1"
+    --help|-h) show_full_help; exit 0 ;;
+    --*) 
+      echo "Error: Unknown flag '$1'" >&2
+      show_brief_usage >&2
+      exit 1
+      ;;
+    *) 
+      echo "Error: Unknown argument '$1'" >&2
+      show_brief_usage >&2
+      exit 1
       ;;
   esac
 done
@@ -108,10 +137,11 @@ load_os_profile
 MODULES=()
 while IFS= read -r entry; do
   [[ -n "$entry" ]] && MODULES+=("$entry")
-done < <(dotfiles_profile_apply)
+done < <(dotfiles_profile_apply "$PRESET")
 
 log "Dotfiles: $DOTFILES"
 log "Profile:  $PROFILE_NAME ($PROFILE_PATH)"
+log "Preset:   $PRESET"
 log "Dry-run:  $DRY_RUN"
 if ((${#MODULES[@]} == 0)); then
   die "No modules enabled in profile: $PROFILE_PATH"
@@ -121,3 +151,5 @@ log "Modules:  ${MODULES[*]}"
 for entry in "${MODULES[@]}"; do
   run_module_entry "$entry"
 done
+
+log "✅ Dotfiles installation complete (preset: $PRESET)"

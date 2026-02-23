@@ -1,35 +1,56 @@
 #!/usr/bin/env bash
 
-# Ubuntu profile: user chooses modules by editing MODULES.
+# Ubuntu profile: 使用预设配置
 #
-# Notes:
-# - This file is sourced by `./init.sh` to load `dotfiles_profile_apply`.
-# - `dotfiles_profile_apply` is the only exported API; keep this file config-only.
+# 支持预设:
+#   --min  (--minimal)   : 最小安装 (core + editors + dev-env)
+#   --dev  (--develop)   : 开发完整 (默认，包含 dev-tools)
+#   --full (--complete)  : 全部安装 (包含可选组件)
+#
+# 使用方式:
+#   ./init.sh --min
+#   ./init.sh --dev
+#   ./init.sh --full
 
 dotfiles_profile_apply() {
-  cat <<'EOF'
-bash=1
-scripts=1
-curl=1
-wget=1
-git=1
-gitconfig=1
-rg=1
-fd=1
-global=1
-rustup=1
-rust=1
-treesitter_cli=1
-vim=1
-nvim=1
-dev_tools=1
-tmux=1
-zoxide=1
-nvm=1
-clang_format=1
-ctags=1
-lazygit=1
-opencode=1
-mihomo=1
+  local preset="${1:-dev}"
+  
+  case "$preset" in
+    minimal|--min|--minimal)
+      cat <<'EOF'
+00-core=1
+20-editors=1
+30-dev-env=1
 EOF
+      ;;
+    dev|--dev|--develop|default)
+      cat <<'EOF'
+00-core=1
+10-dev-tools=1
+20-editors=1
+30-dev-env=1
+40-system=1
+EOF
+      ;;
+    full|--full|--complete)
+      cat <<'EOF'
+00-core=1
+10-dev-tools=1
+20-editors=1
+30-dev-env=1
+40-system=1
+50-optional=1
+EOF
+      ;;
+    *)
+      # 默认使用 dev
+      cat <<'EOF'
+00-core=1
+10-dev-tools=1
+20-editors=1
+30-dev-env=1
+40-system=1
+EOF
+      ;;
+  esac
 }
