@@ -22,6 +22,7 @@ rust=1
 treesitter_cli=1
 vim=1
 nvim=1
+dev_tools=1
 tmux=1
 zoxide=1
 nvm=1
