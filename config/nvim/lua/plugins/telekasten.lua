@@ -64,16 +64,17 @@ return {
       end
 
       return {
-        { "<leader>kp", tk_cmd("panel"), desc = "Notes Panel" },
+        -- 使用 n 前缀（notes）避免与 interestingwords 的 <leader>k 冲突
+        { "<leader>np", tk_cmd("panel"), desc = "Notes Panel" },
         -- Open the daily note directly (Telekasten's goto_* can behave like "insert link" in some contexts).
-        { "<leader>kt", goto_today, desc = "Notes Today" },
-        { "<leader>kw", goto_thisweek, desc = "Notes This Week" },
-        { "<leader>kn", tk_cmd("new_note"), desc = "Notes New" },
-        { "<leader>kl", tk_cmd("follow_link"), desc = "Notes Follow Link" },
-        { "<leader>kc", tk_cmd("show_calendar", function() vim.cmd("Calendar") end), desc = "Notes Calendar" },
+        { "<leader>nt", goto_today, desc = "Notes Today" },
+        { "<leader>nw", goto_thisweek, desc = "Notes This Week" },
+        { "<leader>nn", tk_cmd("new_note"), desc = "Notes New" },
+        { "<leader>nl", tk_cmd("follow_link"), desc = "Notes Follow Link" },
+        { "<leader>nc", tk_cmd("show_calendar", function() vim.cmd("Calendar") end), desc = "Notes Calendar" },
         -- Use Telescope for navigation/search (avoids Telekasten's "insert link" behavior in non-modifiable buffers).
-        { "<leader>kf", telescope_find_files, desc = "Notes Find" },
-        { "<leader>kg", telescope_live_grep, desc = "Notes Search" },
+        { "<leader>nf", telescope_find_files, desc = "Notes Find" },
+        { "<leader>ng", telescope_live_grep, desc = "Notes Search" },
       }
     end,
     dependencies = {
