@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 开发工具安装模块
-# 安装 nvim LSP 所需的系统依赖：unzip, Go
+# 安装 nvim LSP 所需的系统依赖：unzip, python3-pip, ruff, Go
 
 # Minimum required Go version for modern LSP tools
 MIN_GO_VERSION="1.23.0"
@@ -39,10 +39,32 @@ module_main() {
     log "  📦 unzip (required by Mason)"
   fi
 
+  # python3-pip: required by Mason to install Python-based LSP servers (ruff, etc.)
+  if ! command -v pip3 &> /dev/null && ! python3 -m pip --version &> /dev/null; then
+    packages+=("python3-pip")
+    log "  📦 python3-pip (required for Python LSP tools like ruff)"
+  fi
+
   if [[ ${#packages[@]} -gt 0 ]]; then
     log "🚀 Installing packages: ${packages[*]}"
     sudo apt-get update -qq
     sudo apt-get install -y -qq "${packages[@]}"
+  fi
+
+  # ruff: Python linter and formatter (install via pip after python3-pip is available)
+  if ! command -v ruff &> /dev/null; then
+    log "📦 Installing ruff (Python linter) via pip..."
+    pip3 install --user ruff || {
+      log "⚠️  Failed to install ruff via pip, trying with python3 -m pip..."
+      python3 -m pip install --user ruff || {
+        log "⚠️  Failed to install ruff, you may need to install it manually: pip3 install --user ruff"
+      }
+    }
+    if command -v ruff &> /dev/null; then
+      log "✅ ruff installed successfully"
+    fi
+  else
+    log "✅ ruff already installed"
   fi
 
   # Go: required for goimports, gofumpt, gopls
