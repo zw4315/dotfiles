@@ -12,9 +12,10 @@ return {
     "nvim-lua/plenary.nvim",
   },
   -- 设置快捷键
+  -- 使用大写 G 因为 lazygit 是低频操作，小写 g 留给高频的 gtags
   keys = {
-    { "<leader>gg", "<cmd>LazyGit<cr>", desc = "LazyGit" },
-    { "<leader>gf", "<cmd>LazyGitCurrentFile<cr>", desc = "LazyGit (当前文件)" },
-    { "<leader>gc", "<cmd>LazyGitConfig<cr>", desc = "LazyGit 配置" },
+    { "<leader>Gg", "<cmd>LazyGit<cr>", desc = "LazyGit" },
+    { "<leader>Gf", "<cmd>LazyGitCurrentFile<cr>", desc = "LazyGit (当前文件)" },
+    { "<leader>Gc", "<cmd>LazyGitConfig<cr>", desc = "LazyGit 配置" },
   },
 }
