@@ -8,6 +8,7 @@ module_main() {
   local profile_src="$DOTFILES/home/profile"
   local aliases_src="$DOTFILES/home/bash_aliases"
   local proxy_src="$DOTFILES/home/proxyrc"
+  local mihd_src="$DOTFILES/home/bash_aliases_mihd"
 
   [[ -f "$bashrc_src" ]] || die "bashrc not found: $bashrc_src"
   [[ -f "$aliases_src" ]] || die "bash_aliases not found: $aliases_src"
@@ -18,6 +19,11 @@ module_main() {
   link_one "$profile_src" "$HOME/.profile"
   link_one "$aliases_src" "$HOME/.bash_aliases"
   link_one "$proxy_src" "$HOME/.proxyrc"
+  
+  # 可选：mihomo 代理管理 alias（如果不存在则跳过）
+  if [[ -f "$mihd_src" ]]; then
+    link_one "$mihd_src" "$HOME/.bash_aliases_mihd"
+  fi
 
   log "ℹ️  bash: restart your shell (or re-source ~/.bashrc) to apply."
 }
