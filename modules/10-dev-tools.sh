@@ -1,34 +1,23 @@
 #!/usr/bin/env bash
 # 开发工具安装模块
-# 安装开发环境：pyenv (Python 3.13), Go (用户级)
+# 安装开发环境：uv + Python 3.13 + Go（用户级）
 
-# Python 默认版本
-PYTHON_VERSION="${PYTHON_VERSION:-3.13.0}"
+PYTHON_VERSION="${PYTHON_VERSION:-3.13}"
 
 # Go 最低版本要求
 MIN_GO_VERSION="1.23.0"
 
-# pyenv 编译 Python 所需的系统依赖
-PYENV_BUILD_DEPS=(
-  make
-  build-essential
-  libssl-dev
-  zlib1g-dev
-  libbz2-dev
-  libreadline-dev
-  libsqlite3-dev
-  wget
-  curl
-  llvm
-  libncursesw5-dev
-  xz-utils
-  tk-dev
-  libxml2-dev
-  libxmlsec1-dev
-  libffi-dev
-  liblzma-dev
-  git
-)
+uv_bin() {
+  if command -v uv >/dev/null 2>&1; then
+    command -v uv
+    return 0
+  fi
+  if [[ -x "$HOME/.local/bin/uv" ]]; then
+    printf '%s' "$HOME/.local/bin/uv"
+    return 0
+  fi
+  return 1
+}
 
 get_go_version() {
   if command -v go >/dev/null 2>&1; then
@@ -42,91 +31,103 @@ version_ge() {
   [[ "$(printf '%s\n' "$1" "$2" | sort -V | head -n1)" == "$2" ]]
 }
 
-# 安装 pyenv 编译依赖
-ensure_pyenv_build_deps() {
-  log "📦 pyenv: checking build dependencies..."
-  
-  local missing_deps=()
-  for dep in "${PYENV_BUILD_DEPS[@]}"; do
-    if ! dpkg -l | grep -q "^ii  $dep "; then
-      missing_deps+=("$dep")
-    fi
-  done
-  
-  if [[ ${#missing_deps[@]} -gt 0 ]]; then
-    log "📦 Installing missing dependencies: ${missing_deps[*]}"
-    if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
-      log "🧪 (dry-run) Would run: sudo apt-get install -y ${missing_deps[*]}"
-    else
-      sudo apt-get update -qq
-      sudo apt-get install -y -qq "${missing_deps[@]}"
-    fi
+ensure_uv() {
+  if uv_path="$(uv_bin)"; then
+    log "✅ uv: already installed ($uv_path)"
+    return 0
+  fi
+
+  log "📦 uv: installing..."
+  if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
+    log "🧪 (dry-run) Would run: curl -fsSL https://astral.sh/uv/install.sh | sh -s -- --no-modify-path"
+    return 0
+  fi
+
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL https://astral.sh/uv/install.sh | sh -s -- --no-modify-path
+  elif command -v wget >/dev/null 2>&1; then
+    wget -qO- https://astral.sh/uv/install.sh | sh -s -- --no-modify-path
   else
-    log "  ✅ All build dependencies installed"
+    die "Need curl or wget to install uv"
+  fi
+
+  uv_path="$(uv_bin || true)"
+  [[ -n "$uv_path" ]] || die "uv install failed"
+  log "✅ uv: installed ($uv_path)"
+}
+
+ensure_python_313_via_uv() {
+  local uv
+  uv="$(uv_bin || true)"
+  [[ -n "$uv" ]] || die "uv not found"
+
+  if "$uv" python find "$PYTHON_VERSION" >/dev/null 2>&1; then
+    log "✅ Python $PYTHON_VERSION: already installed via uv"
+    return 0
+  fi
+
+  log "📦 Python $PYTHON_VERSION: installing via uv..."
+  if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
+    log "🧪 (dry-run) Would run: $uv python install $PYTHON_VERSION"
+  else
+    "$uv" python install "$PYTHON_VERSION"
   fi
 }
 
-# 安装 pyenv
-ensure_pyenv() {
-  if [[ -d "$HOME/.pyenv" ]]; then
-    log "✅ pyenv: already installed"
+link_python_shims() {
+  local uv
+  uv="$(uv_bin || true)"
+  [[ -n "$uv" ]] || die "uv not found"
+
+  local py_path
+  if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
+    py_path="$HOME/.local/share/uv/python/cpython-$PYTHON_VERSION/bin/python3"
   else
-    log "📦 pyenv: installing..."
-    if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
-      log "🧪 (dry-run) Would run: curl https://pyenv.run | bash"
-    else
-      curl https://pyenv.run | bash
-    fi
+    py_path="$($uv python find "$PYTHON_VERSION")"
+    [[ -x "$py_path" ]] || die "uv python path invalid: $py_path"
   fi
-  
-  # 立即启用 pyenv（当前会话）
-  export PYENV_ROOT="$HOME/.pyenv"
-  export PATH="$PYENV_ROOT/bin:$PATH"
-  if command -v pyenv >/dev/null 2>&1; then
-    eval "$(pyenv init -)"
+
+  ensure_dir "$HOME/.local/bin"
+  if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
+    log "🧪 (dry-run) Would link: $HOME/.local/bin/python -> $py_path"
+    log "🧪 (dry-run) Would link: $HOME/.local/bin/python3 -> $py_path"
+  else
+    ln -sfn "$py_path" "$HOME/.local/bin/python"
+    ln -sfn "$py_path" "$HOME/.local/bin/python3"
   fi
-  
-  log "✅ pyenv: ready"
+  log "✅ python/python3: linked to uv Python $PYTHON_VERSION"
 }
 
-# 通过 pyenv 安装 Python
-ensure_python() {
-  # 检查是否已安装该版本
-  if [[ -d "$HOME/.pyenv/versions/$PYTHON_VERSION" ]]; then
-    log "✅ Python $PYTHON_VERSION: already installed"
-  else
-    ensure_pyenv_build_deps
-    log "📦 Python $PYTHON_VERSION: installing via pyenv..."
-    log "   This may take 5-10 minutes..."
-    
-    if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
-      log "🧪 (dry-run) Would run: pyenv install $PYTHON_VERSION"
-    else
-      pyenv install "$PYTHON_VERSION"
-    fi
+ensure_nvim_python_provider() {
+  local provider_dir="$HOME/.local/share/nvim/python-provider-3.13"
+  local provider_python="$provider_dir/bin/python"
+  local uv
+  uv="$(uv_bin || true)"
+  [[ -n "$uv" ]] || die "uv not found"
+
+  if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
+    log "🧪 (dry-run) Would run: $uv venv --python $PYTHON_VERSION $provider_dir"
+    log "🧪 (dry-run) Would run: $uv pip install --python $provider_python --upgrade pynvim"
+    return 0
   fi
-  
-  # 设置为全局默认
-  if [[ "${DRY_RUN:-0}" -eq 0 ]]; then
-    pyenv global "$PYTHON_VERSION"
+
+  if [[ ! -x "$provider_python" ]]; then
+    "$uv" venv --python "$PYTHON_VERSION" "$provider_dir"
   fi
-  log "✅ Python $PYTHON_VERSION: set as global default"
-  
-  # 验证
-  if [[ "${DRY_RUN:-0}" -eq 0 ]]; then
-    python --version
-  fi
+  "$uv" pip install --python "$provider_python" --upgrade pynvim
+  log "✅ nvim python provider: $provider_python"
 }
 
-# 链接 pyenv 的 profile.d 配置
-link_pyenv_profile() {
-  local src="${DOTFILES:?}/home/profile.d/pyenv.sh"
-  local dst_dir="$HOME/.profile.d"
-  local dst="$dst_dir/pyenv.sh"
-  
-  [[ -f "$src" ]] || die "pyenv profile snippet not found: $src"
-  ensure_dir "$dst_dir"
-  link_one "$src" "$dst"
+cleanup_legacy_pyenv_profile() {
+  local old_profile="$HOME/.profile.d/pyenv.sh"
+  if [[ -L "$old_profile" || -f "$old_profile" ]]; then
+    if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
+      log "🧪 (dry-run) Would remove legacy profile: $old_profile"
+    else
+      rm -f "$old_profile"
+    fi
+    log "✅ removed legacy pyenv profile snippet"
+  fi
 }
 
 # Go 安装（改为用户级 ~/.local/go）
@@ -223,14 +224,16 @@ module_main() {
   else
     log "  ✅ unzip: already installed"
   fi
-  
-  # 2. 安装 pyenv + Python 3.13
+
+  # 2. 安装 uv + Python 3.13
   log ""
-  log "📦 Setting up Python via pyenv..."
-  ensure_pyenv
-  ensure_python
-  link_pyenv_profile
-  
+  log "📦 Setting up Python via uv..."
+  ensure_uv
+  ensure_python_313_via_uv
+  link_python_shims
+  ensure_nvim_python_provider
+  cleanup_legacy_pyenv_profile
+
   # 3. 安装 Go（用户级）
   log ""
   log "📦 Setting up Go..."
@@ -240,8 +243,8 @@ module_main() {
   log ""
   log "✅ Development tools setup complete"
   log ""
-  log "ℹ️  Important: Run 'source ~/.profile' or open a new terminal to use pyenv and Go"
-  log "ℹ️  Python: python --version (should show $PYTHON_VERSION)"
+  log "ℹ️  Important: Run 'source ~/.profile' or open a new terminal to use uv and Go"
+  log "ℹ️  Python: python --version (should show 3.13.x)"
   log "ℹ️  Go: go version"
 }
 

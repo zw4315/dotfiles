@@ -100,9 +100,10 @@
    - 修复 `\&\&` 误写为 `&&`
    - 修复 `bash_completion` 错误 source 到 `nvm.sh` 的问题
 
-2. `home/profile.d/pyenv.sh`
-   - 改为 POSIX 兼容写法（`[ ]`、`>/dev/null 2>&1`）
-   - 将 `alias python=...` 限制在 bash 环境，避免非 bash profile 兼容问题
+2. Python 工具链迁移（pyenv -> uv）
+   - 删除 `home/profile.d/pyenv.sh`，不再维护 pyenv profile 逻辑
+   - `modules/10-dev-tools.sh` 改为使用 `uv` 安装 Python 3.13
+   - 使用 `~/.local/bin/python` 和 `~/.local/bin/python3` 软链接统一到 uv 的 3.13
 
 3. 新增 `modules/zoxide.sh`
    - 补齐 `40-system.sh` 依赖的模块缺失问题

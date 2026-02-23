@@ -9,7 +9,7 @@
 ```
 modules/
 ├── 00-core.sh          # 基础依赖 (curl, wget, unzip)
-├── 10-dev-tools.sh     # 开发依赖 (pyenv Python 3.13, go)
+├── 10-dev-tools.sh     # 开发依赖 (uv Python 3.13, go)
 ├── 20-editors.sh       # 编辑器 (vim, nvim, treesitter_cli)
 ├── 30-dev-env.sh       # 开发工具 (git, lazygit, rg, fd, ctags, global, clang_format)
 ├── 40-system.sh        # 系统工具 (bash, tmux, zoxide, scripts)
@@ -28,8 +28,8 @@ core=
   unzip
 
 dev-tools=
-  pyenv
-  python-3.13
+  uv
+  python-3.13-via-uv
   go
 
 ...
