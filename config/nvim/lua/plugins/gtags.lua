@@ -36,16 +36,18 @@ return {
       local opts = { noremap = true, silent = true }
       
       -- gtags 跳转
-      vim.keymap.set("n", "<leader>gd", "<cmd>Gtags<cr>", vim.tbl_extend("force", opts, { desc = "Gtags definition" }))
-      vim.keymap.set("n", "<leader>gr", "<cmd>Gtags -r<cr>", vim.tbl_extend("force", opts, { desc = "Gtags references" }))
-      vim.keymap.set("n", "<leader>gs", "<cmd>Gtags -s<cr>", vim.tbl_extend("force", opts, { desc = "Gtags symbol" }))
-      vim.keymap.set("n", "<leader>gg", "<cmd>Gtags -g<cr>", vim.tbl_extend("force", opts, { desc = "Gtags grep" }))
+      -- 注意：避免与 lazygit (<leader>gg) 冲突
+      vim.keymap.set("n", "<leader>Gd", "<cmd>Gtags<cr>", vim.tbl_extend("force", opts, { desc = "Gtags definition" }))
+      vim.keymap.set("n", "<leader>Gr", "<cmd>Gtags -r<cr>", vim.tbl_extend("force", opts, { desc = "Gtags references" }))
+      vim.keymap.set("n", "<leader>Gs", "<cmd>Gtags -s<cr>", vim.tbl_extend("force", opts, { desc = "Gtags symbol" }))
+      vim.keymap.set("n", "<leader>Gg", "<cmd>Gtags -g<cr>", vim.tbl_extend("force", opts, { desc = "Gtags grep" }))
       
-      -- 与 LSP 配合：g 前缀用于 gtags
-      -- <leader>gd - gtags 定义（快速）
+      -- 与 LSP 配合：G 前缀用于 gtags（大写 G 避免与 lazygit 冲突）
+      -- <leader>Gd - gtags 定义（快速）
       -- gd - LSP 定义（精确）
-      -- <leader>gr - gtags 引用（快速）
+      -- <leader>Gr - gtags 引用（快速）
       -- gr - LSP 引用（精确）
+      -- <leader>Gg - gtags grep（注意：不是 <leader>gg，避免与 lazygit 冲突）
     end,
   },
 }
