@@ -9,7 +9,7 @@ alias mih='mihomo -f "${HOME}/.config/mihomo/config.yaml"'
 # mihd 守护进程管理函数
 mihd() {
   local cmd="${1:-start}"
-  local config_file work_dir pid_file
+  local config_file work_dir pid_file log_file
 
   # 配置文件位置
   config_file="${HOME}/.config/mihomo/config.yaml"
@@ -17,9 +17,26 @@ mihd() {
   # 工作目录放在 ~/.local/share/，避免污染 repo
   work_dir="${HOME}/.local/share/mihomo"
   pid_file="${work_dir}/mihomo.pid"
+  log_file="${work_dir}/mihomo.log"
   
   # 确保工作目录存在
   mkdir -p "$work_dir"
+
+  # 日志大小限制 (10MB)
+  local max_log_size=$((10 * 1024 * 1024))
+  local max_log_lines=1000
+
+  # 日志轮转函数
+  _mihd_rotate_log() {
+    if [[ -f "$log_file" ]]; then
+      local file_size
+      file_size=$(stat -f%z "$log_file" 2>/dev/null || stat -c%s "$log_file" 2>/dev/null || echo 0)
+      if [[ "$file_size" -gt "$max_log_size" ]]; then
+        tail -n "$max_log_lines" "$log_file" > "${log_file}.tmp" 2>/dev/null && \
+          mv "${log_file}.tmp" "$log_file" 2>/dev/null
+      fi
+    fi
+  }
 
   case "$cmd" in
     start|"")
@@ -27,10 +44,12 @@ mihd() {
         echo "mihomo is already running (PID: $(cat "$pid_file"))"
         return 1
       fi
+      _mihd_rotate_log
       echo "Starting mihomo daemon..."
-      nohup mihomo -f "$config_file" -d "$work_dir" >/dev/null 2>&1 &
+      nohup mihomo -f "$config_file" -d "$work_dir" >"$log_file" 2>&1 &
       echo $! > "$pid_file"
       echo "mihomo started (PID: $!)"
+      echo "Log file: $log_file"
       ;;
     stop|kill)
       if [[ -f "$pid_file" ]]; then
@@ -59,11 +78,14 @@ mihd() {
       rm -f "$pid_file"
       # 3. 等待进程退出
       sleep 1
-      # 4. 重新启动
+      # 4. 日志轮转
+      _mihd_rotate_log
+      # 5. 重新启动
       echo "Starting mihomo daemon..."
-      nohup mihomo -f "$config_file" -d "$work_dir" >/dev/null 2>&1 &
+      nohup mihomo -f "$config_file" -d "$work_dir" >"$log_file" 2>&1 &
       echo $! > "$pid_file"
       echo "mihomo force restarted (PID: $!)"
+      echo "Log file: $log_file"
       ;;
     st|status)
       if [[ -f "$pid_file" ]]; then
@@ -103,6 +125,24 @@ mihd() {
         ${EDITOR:-vim} "$config_file"
       else
         echo "Config not found: $config_file"
+        return 1
+      fi
+      ;;
+    logs)
+      # 查看 mihomo 日志（默认 tail -n 50 -f）
+      local lines="${2:-50}"
+      if [[ ! "$lines" =~ ^[0-9]+$ ]]; then
+        echo "Invalid lines count: $lines"
+        echo "Usage: mihd logs [lines]"
+        return 1
+      fi
+
+      if [[ -f "$log_file" ]]; then
+        echo "Tailing $log_file (last $lines lines, Ctrl+C to exit)"
+        tail -n "$lines" -f "$log_file"
+      else
+        echo "Log file not found: $log_file"
+        echo "Start mihomo first with: mihd start"
         return 1
       fi
       ;;
