@@ -1,59 +1,45 @@
--- gtags 配置 - 支持全局代码跳转
--- 与 LSP 共存，提供快速代码导航
-
+-- gtags.nvim 配置 - 纯 Lua 实现，不依赖 cscope
 return {
-  -- 自动生成 tags（ctags + gtags）
   {
-    "ludovicchabant/vim-gutentags",
+    "wsdjeg/gtags.nvim",
     event = "VeryLazy",
+    dependencies = {
+      "rcarriga/nvim-notify",
+      "wsdjeg/job.nvim",
+      "wsdjeg/logger.nvim",
+    },
     config = function()
-      -- 启用 gtags 模块
-      vim.g.gutentags_modules = { "ctags", "gtags_cscope" }
+      local gtags = require("gtags")
+      gtags.setup()
 
-      -- 缓存目录
-      vim.g.gutentags_cache_dir = vim.fn.expand("~/.cache/tags")
+      -- 自动更新 gtags 数据库
+      local gtags_group = vim.api.nvim_create_augroup("GtagsAutoUpdate", { clear = true })
 
-      -- 项目根目录标记
-      vim.g.gutentags_project_root = { ".root", ".git", ".hg", ".svn", ".bzr",
-        "_darcs", "package.json", "Cargo.toml", "go.mod", "Makefile", "CMakeLists.txt" }
+      -- 打开文件时，如果数据库不存在则生成
+      vim.api.nvim_create_autocmd("BufReadPost", {
+        group = gtags_group,
+        pattern = "*",
+        callback = function()
+          local cache_dir = vim.fn.stdpath("data") .. "/gtags.nvim/"
+          local project_hash = vim.fn.getcwd():gsub("/", "_"):gsub("\\", "_"):gsub(":", "_")
+          local gtags_file = cache_dir .. project_hash .. "/GTAGS"
 
-      -- 关闭自动跳转目录
-      vim.g.gutentags_plus_switch = 1
+          -- 如果数据库不存在，生成完整数据库
+          if vim.fn.filereadable(gtags_file) ~= 1 then
+            gtags.update()
+          end
+        end,
+      })
 
-      -- 自动生成 tags 配置
-      vim.g.gutentags_generate_on_new = 1
-      vim.g.gutentags_generate_on_missing = 1
-      vim.g.gutentags_generate_on_write = 1
-      vim.g.gutentags_generate_on_empty_buffer = 0
-
-      -- 调试选项（需要时取消注释）
-      -- vim.g.gutentags_trace = 1
-      -- vim.g.gutentags_define_advanced_commands = 1
-    end,
-  },
-  
-  -- gtags 增强插件
-  {
-    "skywind3000/gutentags_plus",
-    event = "VeryLazy",
-    dependencies = { "ludovicchabant/vim-gutentags" },
-    config = function()
-      -- 按键映射
-      local opts = { noremap = true, silent = true }
-      
-      -- gtags 跳转
-      -- 使用小写 g 因为 gtags 是高频操作
-      vim.keymap.set("n", "<leader>gd", "<cmd>Gtags<cr>", vim.tbl_extend("force", opts, { desc = "Gtags definition" }))
-      vim.keymap.set("n", "<leader>gr", "<cmd>Gtags -r<cr>", vim.tbl_extend("force", opts, { desc = "Gtags references" }))
-      vim.keymap.set("n", "<leader>gs", "<cmd>Gtags -s<cr>", vim.tbl_extend("force", opts, { desc = "Gtags symbol" }))
-      vim.keymap.set("n", "<leader>gg", "<cmd>Gtags -g<cr>", vim.tbl_extend("force", opts, { desc = "Gtags grep" }))
-      
-      -- 与 LSP 配合：小写 g 前缀用于高频的 gtags
-      -- <leader>gd - gtags 定义（快速）
-      -- gd - LSP 定义（精确）
-      -- <leader>gr - gtags 引用（快速）
-      -- gr - LSP 引用（精确）
-      -- <leader>gg - gtags grep（高频操作，使用小写 g）
+      -- 保存文件后单文件更新数据库
+      vim.api.nvim_create_autocmd("BufWritePost", {
+        group = gtags_group,
+        pattern = "*",
+        callback = function()
+          -- 使用 single_update 模式更新当前文件
+          gtags.update(true)
+        end,
+      })
     end,
   },
 }
