@@ -9,17 +9,23 @@ return {
     config = function()
       -- 启用 gtags 模块
       vim.g.gutentags_modules = { "ctags", "gtags_cscope" }
-      
+
       -- 缓存目录
       vim.g.gutentags_cache_dir = vim.fn.expand("~/.cache/tags")
-      
+
       -- 项目根目录标记
-      vim.g.gutentags_project_root = { ".root", ".git", ".hg", ".svn", ".bzr", 
+      vim.g.gutentags_project_root = { ".root", ".git", ".hg", ".svn", ".bzr",
         "_darcs", "package.json", "Cargo.toml", "go.mod", "Makefile", "CMakeLists.txt" }
-      
+
       -- 关闭自动跳转目录
       vim.g.gutentags_plus_switch = 1
-      
+
+      -- 自动生成 tags 配置
+      vim.g.gutentags_generate_on_new = 1
+      vim.g.gutentags_generate_on_missing = 1
+      vim.g.gutentags_generate_on_write = 1
+      vim.g.gutentags_generate_on_empty_buffer = 0
+
       -- 调试选项（需要时取消注释）
       -- vim.g.gutentags_trace = 1
       -- vim.g.gutentags_define_advanced_commands = 1

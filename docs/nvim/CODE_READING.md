@@ -30,12 +30,13 @@
 - 日常使用：`<leader>gd`（gtags，快速）
 - 类型敏感：先按 `gd`（LSP，精确）
 
-**准备工作**：
-```bash
-# 在项目根目录生成 gtags 数据库
-cd your-project
-gtags
-```
+**自动生成**：
+gutentags 会自动检测项目根目录（包含 `.git`, `Makefile` 等标记），并在以下情况自动生成 gtags：
+- 打开项目中的新文件
+- 保存文件时
+- 缺少 tags 文件时
+
+**无需手动运行 `gtags` 命令！**
 
 ### 1.2 查找引用（References）
 
@@ -279,8 +280,8 @@ vic             选择类内部
 
 ### 场景 1：初次阅读新项目
 
-1. **生成索引**：`cd project && gtags`
-2. **打开入口文件**：`nvim main.c`
+1. **打开项目**：`cd project && nvim main.c`
+2. **自动索引**：gutentags 会自动生成 gtags 数据库（首次可能需要几秒钟）
 3. **查看结构**：按 `<F8>` 查看符号大纲
 4. **跳转定义**：`<leader>gd` 跳转到函数定义
 5. **标记重点**：`<leader>ba` 添加书签
@@ -307,7 +308,7 @@ vic             选择类内部
 A: gtags 基于文本索引，速度快但不够精确；LSP 基于语义分析，精确但较慢。日常使用 gtags，需要精确类型信息时用 LSP。
 
 **Q: 为什么按 `<leader>gd` 没有反应？**
-A: 确保已在项目根目录运行 `gtags` 生成了数据库。
+A: gutentags 会自动生成数据库，但首次打开项目可能需要几秒钟。如果长时间无响应，检查项目根目录是否有 `.git` 或 `Makefile` 等标记文件。
 
 **Q: 如何快速切换文件？**
 A: 使用 `<leader>e` 打开文件树，或使用 `<leader>fg`（Telescope）模糊搜索。
