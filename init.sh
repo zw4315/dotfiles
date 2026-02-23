@@ -131,25 +131,68 @@ run_module_entry() {
   )
 }
 
-# Apply profile configuration (kept here so the main flow reads top-to-bottom).
-load_os_profile
+# 加载配置文件
+load_package_config
 
-MODULES=()
-while IFS= read -r entry; do
-  [[ -n "$entry" ]] && MODULES+=("$entry")
-done < <(dotfiles_profile_apply "$PRESET")
+# 从配置获取组列表
+PRESET_GROUPS=$(get_preset_groups "$PRESET")
 
 log "Dotfiles: $DOTFILES"
 log "Profile:  $PROFILE_NAME ($PROFILE_PATH)"
 log "Preset:   $PRESET"
 log "Dry-run:  $DRY_RUN"
-if ((${#MODULES[@]} == 0)); then
-  die "No modules enabled in profile: $PROFILE_PATH"
-fi
-log "Modules:  ${MODULES[*]}"
 
-for entry in "${MODULES[@]}"; do
-  run_module_entry "$entry"
+if [[ -z "$PRESET_GROUPS" ]]; then
+  die "No groups defined for preset: $PRESET"
+fi
+
+log "Groups:   $PRESET_GROUPS"
+log ""
+
+# 显示配置文件中的包清单（安装前让用户知道要装什么）
+log "📋 Package manifest:"
+for group in $PRESET_GROUPS; do
+  packages=$(get_group_packages "$group")
+  log "  [$group]: $packages"
+done
+log ""
+
+# 执行每个组对应的模块
+for group in $PRESET_GROUPS; do
+  # 先尝试找带数字前缀的模块 (如 00-core.sh)
+  script=""
+  for f in "$DOTFILES/modules/"[0-9][0-9]-"$group.sh"; do
+    if [[ -f "$f" ]]; then
+      script="$f"
+      break
+    fi
+  done
+  
+  # 如果没有找到，尝试不带数字前缀的
+  if [[ -z "$script" ]]; then
+    if [[ -f "$DOTFILES/modules/$group.sh" ]]; then
+      script="$DOTFILES/modules/$group.sh"
+    fi
+  fi
+  
+  if [[ ! -f "$script" ]]; then
+    log "⚠️  Warning: No module script found for group: $group"
+    continue
+  fi
+  
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    log "▶ group: $group ($script)"
+  else
+    log "▶ group: $group"
+  fi
+
+  # 运行模块
+  (
+    set -euo pipefail
+    source "$script"
+    module_main 1
+  )
 done
 
+log ""
 log "✅ Dotfiles installation complete (preset: $PRESET)"

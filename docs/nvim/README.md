@@ -16,6 +16,48 @@ modules/
 └── 50-optional.sh      # 可选组件 (rust, nvm, opencode, mihomo)
 ```
 
+### 配置文件
+
+所有软件包定义在独立的配置文件中：
+
+**config/packages.conf** - 包清单
+```
+core=
+  curl
+  wget
+  unzip
+
+dev-tools=
+  python3-pip
+  python3-venv
+  go
+
+...
+```
+
+**config/presets.conf** - 预设定义
+```
+minimal=
+  core
+  editors
+  dev-env
+
+dev=
+  core
+  dev-tools
+  editors
+  dev-env
+  system
+
+full=
+  core
+  dev-tools
+  editors
+  dev-env
+  system
+  optional
+```
+
 ## 文件列表
 
 | 文档 | 内容 |
