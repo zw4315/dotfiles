@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 开发工具安装模块
-# 安装 nvim LSP 所需的系统依赖：unzip, python3-pip, ruff, Go
+# 安装 nvim LSP 所需的系统依赖：unzip, python3-pip, python3-venv, Go
 
 # Minimum required Go version for modern LSP tools
 MIN_GO_VERSION="1.23.0"
@@ -42,29 +42,35 @@ module_main() {
   # python3-pip: required by Mason to install Python-based LSP servers (ruff, etc.)
   if ! command -v pip3 &> /dev/null && ! python3 -m pip --version &> /dev/null; then
     packages+=("python3-pip")
-    log "  📦 python3-pip (required for Python LSP tools like ruff)"
+    log "  📦 python3-pip (required for Python LSP tools)"
+  fi
+
+  # python3-venv: required by Mason to create virtualenv for Python tools
+  # Mason installs Python LSP servers (ruff, debugpy, etc.) in isolated virtualenvs
+  # Note: Check if we can actually create a venv (not just if --help works)
+  local test_venv_dir=$(mktemp -d)
+  if ! python3 -m venv "$test_venv_dir" &> /dev/null 2>&1; then
+    rm -rf "$test_venv_dir"
+    # Try to find the appropriate python3.x-venv package
+    local py_version=$(python3 --version 2>&1 | grep -oP '\d+\.\d+' | head -1)
+    if [[ -n "$py_version" ]]; then
+      # Convert "3.10" to "3.10" package name format
+      local venv_pkg="python${py_version}-venv"
+      packages+=("$venv_pkg" "python3-venv")
+      log "  📦 $venv_pkg (required for Mason virtualenv)"
+    else
+      packages+=("python3-venv")
+      log "  📦 python3-venv (required for Mason virtualenv)"
+    fi
+  else
+    rm -rf "$test_venv_dir"
+    log "  ✅ python3-venv already installed"
   fi
 
   if [[ ${#packages[@]} -gt 0 ]]; then
     log "🚀 Installing packages: ${packages[*]}"
     sudo apt-get update -qq
     sudo apt-get install -y -qq "${packages[@]}"
-  fi
-
-  # ruff: Python linter and formatter (install via pip after python3-pip is available)
-  if ! command -v ruff &> /dev/null; then
-    log "📦 Installing ruff (Python linter) via pip..."
-    pip3 install --user ruff || {
-      log "⚠️  Failed to install ruff via pip, trying with python3 -m pip..."
-      python3 -m pip install --user ruff || {
-        log "⚠️  Failed to install ruff, you may need to install it manually: pip3 install --user ruff"
-      }
-    }
-    if command -v ruff &> /dev/null; then
-      log "✅ ruff installed successfully"
-    fi
-  else
-    log "✅ ruff already installed"
   fi
 
   # Go: required for goimports, gofumpt, gopls
