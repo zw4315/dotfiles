@@ -69,77 +69,6 @@ ensure_mihomo() {
 }
 
 ensure_mihomo_config() {
-  local config_dir="${HOME}/.config/mihomo"
-  local config_file="${config_dir}/config.yaml"
-
-  ensure_dir "$config_dir"
-
-  if [[ -f "$config_file" ]]; then
-    log "✅ mihomo config: already exists"
-    return 0
-  fi
-
-  if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
-    log "📄 (dry-run) Create config: $config_file"
-    return 0
-  fi
-
-  cat > "$config_file" <<'EOF'
-# mihomo configuration
-
-# HTTP proxy port
-port: 7890
-
-# SOCKS5 proxy port
-socks-port: 7891
-
-# Enable redirect to proxy
-# redir-port: 7892
-
-# Enable TUN mode (requires root)
-# tun:
-#   enable: true
-#   stack: system
-#   dns-hijack:
-#     - 8.8.8.8
-#     - 8.8.4.4
-
-# Allow other devices to connect
-# bind-address: "*"
-
-# Log level
-log-level: info
-
-# External controller
-# external-controller: 127.0.0.1:9090
-
-# Proxies
-# proxies:
-#   - name: "example"
-#     type: ss
-#     server: example.com
-#     port: 443
-#     cipher: aes-256-gcm
-#     password: password
-
-# Proxy groups
-# proxy-groups:
-#   - name: "auto"
-#     type: select
-#     proxies:
-#       - DIRECT
-#       - example
-
-# Rules
-# rules:
-#   - MATCH,auto
-EOF
-
-  log "✅ mihomo config: created at ${config_file}"
-  log "📝 Edit ${config_file} to add your nodes"
-}
-
-ensure_mihomo_config() {
   local template="$DOTFILES/config/mihomo/config.yaml"
   local config_dir="$HOME/.config/mihomo"
   local dst="${config_dir}/config.yaml"
@@ -150,7 +79,7 @@ ensure_mihomo_config() {
 
   if [[ -f "$dst" ]]; then
     # 检查是否是有效的代理配置（不是模板）
-    if grep -q "proxy-providers:" "$dst" 2>/dev/null && ! grep -q "proxy-providers:" "$dst" | grep -q "^#"; then
+    if grep -q '^[[:space:]]*proxy-providers:' "$dst" 2>/dev/null; then
       log "✅ mihomo config already exists: ${dst}"
     else
       log "⚠️  mihomo config exists but may be template (no proxy-providers configured)"

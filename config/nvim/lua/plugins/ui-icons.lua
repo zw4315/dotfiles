@@ -36,7 +36,7 @@ return {
     cmd = { "NerdFontToggle", "NerdFontOn", "NerdFontOff" },
     keys = {
       {
-        "<leader>uI",
+        "<leader>ui",
         "<cmd>NerdFontToggle<cr>",
         desc = "Toggle Nerd Font Icons",
       },

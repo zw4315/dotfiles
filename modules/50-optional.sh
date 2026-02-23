@@ -24,10 +24,9 @@ ensure_rust() {
 ensure_nvm() {
   if [[ -d "$HOME/.nvm" ]]; then
     log "✅ nvm: already installed"
-    return 0
+  else
+    log "📦 nvm: installing"
   fi
-
-  log "📦 nvm: installing"
   # shellcheck source=/dev/null
   source "${DOTFILES:?}/modules/nvm.sh"
   module_main 1
@@ -35,9 +34,11 @@ ensure_nvm() {
 
 # Opencode
 ensure_opencode() {
-  command -v opencode >/dev/null 2>&1 && { log "✅ opencode: already installed"; return 0; }
+  command -v opencode >/dev/null 2>&1 && log "✅ opencode: already installed"
 
-  log "📦 opencode: installing"
+  if ! command -v opencode >/dev/null 2>&1; then
+    log "📦 opencode: installing"
+  fi
   # shellcheck source=/dev/null
   source "${DOTFILES:?}/modules/opencode.sh"
   module_main 1
@@ -45,12 +46,11 @@ ensure_opencode() {
 
 # Mihomo (代理工具)
 ensure_mihomo() {
-  command -v mihomo >/dev/null 2>&1 || command -v clash >/dev/null 2>&1 && { 
+  if command -v mihomo >/dev/null 2>&1 || command -v clash >/dev/null 2>&1; then
     log "✅ mihomo: already installed"
-    return 0
-  }
-
-  log "📦 mihomo: installing"
+  else
+    log "📦 mihomo: installing"
+  fi
   # shellcheck source=/dev/null
   source "${DOTFILES:?}/modules/mihomo.sh"
   module_main 1

@@ -65,8 +65,30 @@ LazyVim/本仓库常用外部依赖（建议安装）：
 
 说明：本仓库把 `<leader>` 设为 `Space`（见 `config/nvim/init.lua`）。
 
-- `<leader>kt`：打开/创建今天的 daily note
-- `<leader>kc`：打开日历（在日历里选择日期并回车，会打开/创建当天 daily note）
-- `<leader>kp`：telekasten 面板
-- `<leader>kf`：查找笔记
-- `<leader>kg`：全文搜索
+- `<leader>od`：打开/创建今天的 daily note
+- `<leader>ow`：打开/创建本周 weekly note
+- `<leader>on`：新建笔记
+- `<leader>ol`：跟随 wiki link
+- `<leader>oc`：打开日历（在日历里选择日期并回车，会打开/创建当天 daily note）
+- `<leader>op`：telekasten 面板
+- `<leader>of`：查找笔记
+- `<leader>os`：全文搜索
+
+另外在 markdown 中，当光标位于 `[[wikilink]]` 内时可尝试使用 `<C-CR>` 快速跟随/创建链接（终端兼容性取决于本地终端按键转发能力）。
+
+## 5) gtags（wsdjeg/gtags.nvim）
+
+本仓库使用 `wsdjeg/gtags.nvim`（不依赖 cscope），并做了自动数据库维护：
+
+- 打开已有文件：若项目数据库不存在，则自动全量生成
+- 保存文件：自动单文件增量更新
+- 退出 Neovim：触发一次全量更新兜底
+
+常用按键：
+
+- `<leader>gd`：定义
+- `<leader>gr`：引用
+- `<leader>gs`：符号
+- `<leader>gf`：当前文件符号
+
+Git 保持单一入口：`<leader>gg` 打开 LazyGit。

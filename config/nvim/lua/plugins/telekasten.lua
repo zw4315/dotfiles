@@ -8,7 +8,6 @@ return {
     lazy = true,
     cmd = { "Telekasten" },
     keys = function()
-      -- Avoid LazyVim's <leader>z (zen/zoom) and <leader>n (new file).
       local notes_dir = vim.fn.expand(vim.env.ZK_NOTES_DIR or "~/mgnt/notes")
 
       local function ensure_dirs()
@@ -64,17 +63,14 @@ return {
       end
 
       return {
-        -- 使用 n 前缀（notes）避免与 interestingwords 的 <leader>k 冲突
-        { "<leader>np", tk_cmd("panel"), desc = "Notes Panel" },
-        -- Open the daily note directly (Telekasten's goto_* can behave like "insert link" in some contexts).
-        { "<leader>nt", goto_today, desc = "Notes Today" },
-        { "<leader>nw", goto_thisweek, desc = "Notes This Week" },
-        { "<leader>nn", tk_cmd("new_note"), desc = "Notes New" },
-        { "<leader>nl", tk_cmd("follow_link"), desc = "Notes Follow Link" },
-        { "<leader>nc", tk_cmd("show_calendar", function() vim.cmd("Calendar") end), desc = "Notes Calendar" },
-        -- Use Telescope for navigation/search (avoids Telekasten's "insert link" behavior in non-modifiable buffers).
-        { "<leader>nf", telescope_find_files, desc = "Notes Find" },
-        { "<leader>ng", telescope_live_grep, desc = "Notes Search" },
+        { "<leader>op", tk_cmd("panel"), desc = "Notes Panel" },
+        { "<leader>od", goto_today, desc = "Notes Today" },
+        { "<leader>ow", goto_thisweek, desc = "Notes This Week" },
+        { "<leader>on", tk_cmd("new_note"), desc = "Notes New" },
+        { "<leader>ol", tk_cmd("follow_link"), desc = "Notes Follow Link" },
+        { "<leader>oc", tk_cmd("show_calendar", function() vim.cmd("Calendar") end), desc = "Notes Calendar" },
+        { "<leader>of", telescope_find_files, desc = "Notes Find" },
+        { "<leader>os", telescope_live_grep, desc = "Notes Search" },
       }
     end,
     dependencies = {
@@ -105,6 +101,33 @@ return {
           calendar_monday = 1,
         },
       }
+    end,
+    config = function(_, opts)
+      require("telekasten").setup(opts)
+
+      -- 在 markdown 的 [[wikilink]] 上使用 Ctrl-Enter 跟随/新建
+      vim.api.nvim_create_autocmd("FileType", {
+        pattern = "markdown",
+        callback = function(args)
+          local function in_wikilink()
+            local line = vim.api.nvim_get_current_line()
+            local col = vim.fn.col(".")
+            local left = line:sub(1, math.max(col - 1, 1))
+            local _, open_pos = left:find("%[%[[^%]]*$")
+            if not open_pos then
+              return false
+            end
+            local right = line:sub(col)
+            return right:find("%]%]", 1, false) ~= nil
+          end
+
+          vim.keymap.set({ "n", "i" }, "<C-CR>", function()
+            if in_wikilink() then
+              pcall(vim.cmd, "Telekasten follow_link")
+            end
+          end, { buffer = args.buf, desc = "Notes Follow/Create Link", silent = true })
+        end,
+      })
     end,
   },
 }
