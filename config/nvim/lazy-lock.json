@@ -26,6 +26,7 @@
   "neo-tree.nvim": { "branch": "main", "commit": "ba1ccb6ec201bde095ccb26feed3d4f7cc8d09ee" },
   "noice.nvim": { "branch": "main", "commit": "7bfd942445fb63089b59f97ca487d605e715f155" },
   "nui.nvim": { "branch": "main", "commit": "de740991c12411b663994b2860f1a4fd0937c130" },
+  "nvim-hlslens": { "branch": "main", "commit": "be2d7b2be01860b5445a007ff2bc72b29896db6b" },
   "nvim-lint": { "branch": "master", "commit": "486474c2ace8d78d28995074dbdbe29011bc63d0" },
   "nvim-lspconfig": { "branch": "master", "commit": "5a855bcfec7973767a1a472335684bbd71d2fa2b" },
   "nvim-treesitter": { "branch": "main", "commit": "dc42c209f3820bdfaae0956f15de29689aa6b451" },
@@ -45,5 +46,6 @@
   "trouble.nvim": { "branch": "main", "commit": "bd67efe408d4816e25e8491cc5ad4088e708a69a" },
   "ts-comments.nvim": { "branch": "main", "commit": "123a9fb12e7229342f807ec9e6de478b1102b041" },
   "venv-selector.nvim": { "branch": "regexp", "commit": "d2326e7433fdeb10f7d0d1237c18b91b353f9f8b" },
+  "vim-interestingwords": { "branch": "master", "commit": "1a67ea7bdf4f35c6533f9557051cac0720d3f32f" },
   "which-key.nvim": { "branch": "main", "commit": "3aab2147e74890957785941f0c1ad87d0a44c15a" }
 }

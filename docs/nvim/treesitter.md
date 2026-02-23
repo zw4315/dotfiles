@@ -116,6 +116,10 @@ E5108: Error executing lua (mini.ai) Can not get parser for buffer X and languag
 
 完整列表见：[Treesitter Supported Languages](https://github.com/nvim-treesitter/nvim-treesitter#supported-languages)
 
+## 相关插件
+
+搜索增强插件见 [search-plugins.md](./search-plugins.md)。
+
 ## 配置文件位置
 
 ```
