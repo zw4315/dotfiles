@@ -32,10 +32,21 @@ ensure_nvm() {
   log "✅ nvm: installed ($nvm_sh)"
 }
 
+link_profile_d_config() {
+  local src="${DOTFILES:?}/home/profile.d/nvm.sh"
+  local dst_dir="$HOME/.profile.d"
+  local dst="$dst_dir/nvm.sh"
+
+  [[ -f "$src" ]] || die "nvm profile snippet not found: $src"
+  ensure_dir "$dst_dir"
+  link_one "$src" "$dst"
+}
+
 module_main() {
   local value="${1:-1}"
   is_enabled "$value" || { log "⏭️  nvm disabled"; return 0; }
   ensure_nvm
+  link_profile_d_config
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

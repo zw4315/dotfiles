@@ -109,13 +109,3 @@ alias ls='ls --color=auto'
 
 # 简化 cd
 command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init bash)"
-
-export NVM_DIR="$HOME/.nvm"
-
-[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-[ -s "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion"
-. "$HOME/.cargo/env"
-
-# opencode
-export PATH=/home/edward/.opencode/bin:$PATH
-export PATH="/usr/local/go/bin:$PATH"
