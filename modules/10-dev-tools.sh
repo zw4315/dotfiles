@@ -149,14 +149,33 @@ ensure_go() {
   
   local go_version="1.23.6"
   local go_tar="go${go_version}.linux-amd64.tar.gz"
-  local go_url="https://go.dev/dl/${go_tar}"
+  # 使用阿里云镜像，国内访问更快更稳定
+  local go_url="https://mirrors.aliyun.com/golang/${go_tar}"
   local tmp_dir=$(mktemp -d)
   
   log "   Downloading Go ${go_version}..."
   if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
     log "🧪 (dry-run) Would download: $go_url"
   else
-    curl -sL "$go_url" -o "${tmp_dir}/${go_tar}"
+    # Use -f to fail on HTTP errors, --retry for transient failures
+    log "   Downloading from: $go_url"
+    local curl_output="${tmp_dir}/curl.log"
+    if ! curl -fsL -A "Mozilla/5.0" --retry 3 --retry-delay 2 -o "${tmp_dir}/${go_tar}" "$go_url" 2>"$curl_output"; then
+      log "   ❌ Download failed. Error output:"
+      cat "$curl_output" | sed 's/^/      /' >&2
+      rm -rf "$tmp_dir"
+      die "Failed to download Go from $go_url"
+    fi
+    
+    # Verify download succeeded and has reasonable size (> 10MB)
+    local file_size
+    file_size=$(stat -c%s "${tmp_dir}/${go_tar}" 2>/dev/null || stat -f%z "${tmp_dir}/${go_tar}" 2>/dev/null || echo 0)
+    if [[ "$file_size" -lt 10000000 ]]; then
+      rm -rf "$tmp_dir"
+      die "Downloaded Go tarball is too small (${file_size} bytes), download may have failed"
+    fi
+    
+    log "   Download complete ($(numfmt --to=iec "$file_size" 2>/dev/null || echo "${file_size}" bytes))"
   fi
   
   log "   Extracting to ~/.local/go..."
