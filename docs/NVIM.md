@@ -38,6 +38,9 @@ Single source for Neovim keymap and daily workflows in this repo.
 | Key | Action |
 |---|---|
 | `<leader>e` / `<leader>E` | Snacks explorer (root/cwd) |
+| `go` (in explorer) | open and keep focus on explorer |
+| `gi` (in explorer) | open in horizontal split and keep explorer focus |
+| `gs` (in explorer) | open in vertical split and keep explorer focus |
 | `<leader>ft` | Snacks floating terminal (root) |
 | `<C-/>` | Snacks bottom terminal (root toggle) |
 

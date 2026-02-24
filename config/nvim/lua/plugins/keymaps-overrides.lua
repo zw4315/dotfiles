@@ -5,5 +5,23 @@ return {
     keys = {
       { "<leader>gg", false },
     },
+    opts = {
+      picker = {
+        sources = {
+          explorer = {
+            win = {
+              list = {
+                keys = {
+                  -- NERDTree-style keymaps
+                  ["go"] = { { "confirm", "focus_list" } },
+                  ["gi"] = { { "edit_split", "focus_list" } },
+                  ["gs"] = { { "edit_vsplit", "focus_list" } },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   },
 }
