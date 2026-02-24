@@ -1,7 +1,0 @@
-☐ 需要有分级别的插件, 为了适应内存和 cpu 的不同资源需求
-☐ 适配不同的平台, mac && linux
-☐ 可以兼容 vim 和 nvim, 例如 diffview 只有 nvim 支持, 但是普通 vim 可以用 fugitive
-☐ 需要可以控制大资源消耗插件的 disable
-☐ 有些特定功能性的插件, 可以选择 disable
-☐ 可以有大模型, 弄懂这个补全和 ctrl + P 补全的区别
-☐ 做到 web 图床和 vim 结合
