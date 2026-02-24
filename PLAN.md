@@ -49,7 +49,7 @@ modules/
 ├── 00-core.sh          # unzip, curl, wget (基础依赖，最先执行)
 ├── 10-dev-tools.sh     # python3-pip, python3-venv, go (开发依赖)
 ├── 20-editors.sh       # vim, nvim, treesitter_cli
-├── 30-dev-env.sh       # git, lazygit, rg, fd, ctags, global, clang_format
+├── 30-dev-env.sh       # git, rg, fd, ctags, global, clang_format
 ├── 40-system.sh        # bash, tmux, zoxide, scripts
 └── 50-optional.sh      # rust, nvm, opencode, mihomo (可选)
 ```
@@ -214,7 +214,7 @@ MODULE_PRIORITY=20                      # 执行顺序
 1. [ ] 创建 `modules/00-core.sh` - 合并 curl.sh + wget.sh + unzip
 2. [ ] 创建 `modules/10-dev-tools.sh` - 已有，保留
 3. [ ] 创建 `modules/20-editors.sh` - 合并 vim.sh + nvim.sh + treesitter_cli.sh
-4. [ ] 创建 `modules/30-dev-env.sh` - 合并 git.sh + lazygit.sh + rg.sh + fd.sh + ctags.sh + global.sh + clang_format.sh
+4. [ ] 创建 `modules/30-dev-env.sh` - 合并 git.sh + rg.sh + fd.sh + ctags.sh + global.sh + clang_format.sh
 5. [ ] 创建 `modules/40-system.sh` - 合并 bash.sh + tmux.sh + zoxide.sh + scripts.sh
 6. [ ] 创建 `modules/50-optional.sh` - 合并 rust.sh + rustup.sh + nvm.sh + opencode.sh + mihomo.sh
 7. [ ] 删除旧模块文件
@@ -338,11 +338,6 @@ packages:
       - name: git
         description: "版本控制"
         check_cmd: "git --version"
-        required_by: [minimal, dev, full]
-      
-      - name: lazygit
-        description: "Git TUI"
-        check_cmd: "lazygit --version"
         required_by: [minimal, dev, full]
       
       - name: rg

@@ -4,8 +4,8 @@
 
 ## 命名约定
 
-- `<leader>g*`：代码导航（gtags）
-- `<leader>gg`：Git 单一入口（LazyGit）
+- `<leader>g*`：Git（Diffview + LazyVim Git）
+- `<leader>t*`：代码导航（gtags）
 - `<leader>o*`：Notes（telekasten）
 - `<leader>b*`：Bookmarks
 - `<leader>u*`：UI/开关
@@ -14,26 +14,32 @@
 
 | 快捷键 | 功能 |
 |---|---|
-| `<leader>gd` | gtags 定义 |
-| `<leader>gr` | gtags 引用 |
-| `<leader>gs` | gtags 符号 |
-| `<leader>gf` | gtags 当前文件 |
+| `<leader>td` | gtags 定义 |
+| `<leader>tr` | gtags 引用 |
+| `<leader>ts` | gtags 符号 |
+| `<leader>tf` | gtags 当前文件 |
 | `:Gtags ...` | 原生命令入口 |
 
 说明：
 
 - `gd` / `gr`（无 `<leader>`）仍可用于 LSP 精确跳转。
-- `<leader>gd` / `<leader>gs` 这些键位已从 LazyVim 默认 Git 映射中释放给 gtags。
 
-## Git（精简）
+
+## Git（Diffview）
 
 | 快捷键 | 功能 |
 |---|---|
-| `<leader>gg` | 打开 LazyGit |
+| `<leader>gg` | 打开 Diffview |
+| `<leader>gq` | 关闭 Diffview |
+| `<leader>gh` | 当前文件历史 |
+| `<leader>gH` | 仓库历史 |
+| `<leader>gc` | 输入范围并比较 |
+| `<leader>gd` | Git Diff (hunks) |
+| `<leader>gs` | Git Status |
 
 说明：
 
-- 不再维护大量 Git 子快捷键，进入 LazyGit 后通过 UI 操作。
+- 以 Diffview 为主入口查看改动与历史。
 
 ## Notes（telekasten）
 
@@ -81,7 +87,9 @@
 | 快捷键 | 功能 |
 |---|---|
 | `<leader>ui` | Nerd Font 图标模式切换（glyph/ascii） |
-| `<leader>er` | 在 Neo-tree 中定位当前文件 |
+| `<leader>e` / `<leader>E` | Snacks Explorer（root/cwd） |
+| `<leader>ft` | Snacks 浮动终端（root） |
+| `<C-/>` | Snacks 底部终端（root，toggle） |
 
 ## 语言相关
 

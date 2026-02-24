@@ -1,10 +1,8 @@
 return {
-  -- 关闭 LazyVim 默认的 g* Git 键位，给 gtags 使用
+  -- 保留 <leader>gg 给 Diffview（覆盖 LazyVim lazygit 映射）
   {
     "snacks.nvim",
     keys = {
-      { "<leader>gd", false },
-      { "<leader>gs", false },
       { "<leader>gg", false },
     },
   },

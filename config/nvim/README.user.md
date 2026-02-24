@@ -86,9 +86,9 @@ LazyVim/本仓库常用外部依赖（建议安装）：
 
 常用按键：
 
-- `<leader>gd`：定义
-- `<leader>gr`：引用
-- `<leader>gs`：符号
-- `<leader>gf`：当前文件符号
+- `<leader>td`：定义
+- `<leader>tr`：引用
+- `<leader>ts`：符号
+- `<leader>tf`：当前文件符号
 
-Git 保持单一入口：`<leader>gg` 打开 LazyGit。
+Git 使用 Diffview：`<leader>gg` 打开，`<leader>gq` 关闭，`<leader>gh` 查看当前文件历史，`<leader>gH` 查看仓库历史，`<leader>gc` 输入范围比较。

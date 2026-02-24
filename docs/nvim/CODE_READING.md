@@ -6,12 +6,12 @@
 
 | 场景 | 快捷键 | 说明 |
 |---|---|---|
-| 跳到定义（快） | `<leader>gd` | gtags |
-| 查找引用（快） | `<leader>gr` | gtags |
-| 符号检索 | `<leader>gs` | gtags |
-| 当前文件符号 | `<leader>gf` | gtags |
+| 跳到定义（快） | `<leader>td` | gtags |
+| 查找引用（快） | `<leader>tr` | gtags |
+| 符号检索 | `<leader>ts` | gtags |
+| 当前文件符号 | `<leader>tf` | gtags |
 | 精确语义跳转 | `gd` / `gr` | LSP |
-| 文件树定位 | `<leader>er` | Neo-tree |
+| 文件树定位 | `<leader>e` | Snacks Explorer |
 | 符号大纲 | `<F8>` / `<leader>co` | Aerial |
 | 标记关注点 | `<leader>ba` | Bookmarks |
 
@@ -27,7 +27,7 @@
 
 ## 推荐阅读流程
 
-1. `<leader>gd` 先快速跳定义，浏览调用链。
+1. `<leader>td` 先快速跳定义，浏览调用链。
 2. 在关键位置使用 `<leader>ba` 标记书签。
 3. 需要确认语义时，再使用 LSP 的 `gd` / `gr`。
 4. 用 `<leader>co` 或 `<F8>` 观察当前文件结构。
@@ -41,8 +41,9 @@
 
 ## Git 查看改动
 
-- `<leader>gg`：打开 LazyGit（单一入口）。
-- 进入 UI 后执行 diff/stage/commit 等操作。
+- `<leader>gg`：打开 Diffview（默认横向双栏对比）。
+- `<leader>gq`：关闭 Diffview。
+- `<leader>gh`：查看当前文件历史。
 
 ---
 

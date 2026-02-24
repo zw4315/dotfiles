@@ -21,7 +21,7 @@
 | 00-core.sh | curl, wget, unzip | 基础依赖 |
 | 10-dev-tools.sh | python3-pip, python3-venv, go | 开发依赖 |
 | 20-editors.sh | vim, nvim, treesitter_cli | 编辑器配置 |
-| 30-dev-env.sh | git, lazygit, rg, fd, ctags, global, clang_format | 开发工具链 |
+| 30-dev-env.sh | git, rg, fd, ctags, global, clang_format | 开发工具链 |
 | 40-system.sh | bash, tmux, zoxide, scripts | 系统工具 |
 | 50-optional.sh | rust, nvm, opencode, mihomo | 可选组件 |
 

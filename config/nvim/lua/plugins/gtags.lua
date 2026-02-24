@@ -11,28 +11,28 @@ return {
     },
     keys = {
       {
-        "<leader>gd",
+        "<leader>td",
         function()
           require("gtags").global({})
         end,
         desc = "Gtags Definition",
       },
       {
-        "<leader>gr",
+        "<leader>tr",
         function()
           require("gtags").global({ "-r" })
         end,
         desc = "Gtags References",
       },
       {
-        "<leader>gs",
+        "<leader>ts",
         function()
           require("gtags").global({ "-s" })
         end,
         desc = "Gtags Symbol",
       },
       {
-        "<leader>gf",
+        "<leader>tf",
         function()
           require("gtags").global({ "-f", "%" })
         end,

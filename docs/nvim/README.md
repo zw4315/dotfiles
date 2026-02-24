@@ -11,7 +11,7 @@ modules/
 ├── 00-core.sh          # 基础依赖 (curl, wget, unzip)
 ├── 10-dev-tools.sh     # 开发依赖 (uv Python 3.13, go)
 ├── 20-editors.sh       # 编辑器 (vim, nvim, treesitter_cli)
-├── 30-dev-env.sh       # 开发工具 (git, lazygit, rg, fd, ctags, global, clang_format)
+├── 30-dev-env.sh       # 开发工具 (git, rg, fd, ctags, global, clang_format)
 ├── 40-system.sh        # 系统工具 (bash, tmux, zoxide, scripts)
 └── 50-optional.sh      # 可选组件 (rust, nvm, opencode, mihomo)
 ```
