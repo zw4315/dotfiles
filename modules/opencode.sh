@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 
 ensure_opencode() {
-  if command -v opencode >/dev/null 2>&1; then
+  local opencode_bin="$HOME/.opencode/bin/opencode"
+
+  # 检查存在且可执行（直接检查文件，不依赖 PATH）
+  if [[ -x "$opencode_bin" ]]; then
     log "✅ opencode: already installed"
     return 0
   fi
@@ -21,7 +24,12 @@ ensure_opencode() {
     die "Need curl or wget to install opencode"
   fi
 
-  command -v opencode >/dev/null 2>&1 || die "opencode install failed"
+  # 确保二进制存在且可执行
+  if [[ -f "$opencode_bin" ]]; then
+    chmod +x "$opencode_bin"
+  fi
+
+  [[ -x "$opencode_bin" ]] || die "opencode install failed (binary not found or not executable)"
   log "✅ opencode: installed"
 }
 
