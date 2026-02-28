@@ -1,2 +1,3 @@
+- 当前搞得 go 重装似乎没必要, 分层没分好
 - 安装 `nvim`、`git`、`rg`（ripgrep）建议再装：`fd`（telescope 更好用）
 - 需要把几个系统级别的 sh 搞成配置文件吗？/home/edward/.profile 

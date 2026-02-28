@@ -41,7 +41,7 @@ return {
         map("n", "<leader>gkb", function()
           gs.blame_line({ full = true })
         end, "Blame Line")
-        map("n", "<leader>gkB", gs.toggle_current_line_blame, "Toggle Line Blame")
+        map("n", "<leader>gb", gs.toggle_current_line_blame, "Toggle Line Blame")
 
         -- Diff operations
         map("n", "<leader>gkd", gs.diffthis, "Diff This")
