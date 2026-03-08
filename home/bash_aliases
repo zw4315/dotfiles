@@ -50,6 +50,7 @@ alias hd='ssh edward@156.239.24.42'
 alias centos='ssh edward@43.129.192.176'
 alias llm='ls -lt --reverse'
 
+alias t="tmux a"
 # tui for task gtd
 alias tt="taskwarrior-tui"
 
