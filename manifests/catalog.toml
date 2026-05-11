@@ -92,5 +92,5 @@ group = "devtool"
 
 [mihomo]
 desc = "Mihomo (Clash.Meta) 代理工具"
-platforms = ["linux"]
+platforms = ["darwin", "linux"]
 group = "proxy"

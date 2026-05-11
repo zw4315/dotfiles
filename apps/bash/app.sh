@@ -33,6 +33,16 @@ app_configure() {
     link_home_file "$DOTFILES/home/zprofile" ".zprofile"
   fi
 
+  # 链接 scripts/ 目录下的可执行脚本到 PATH
+  ensure_dir "$HOME/.local/bin"
+  local script
+  for script in "$DOTFILES/scripts/"*; do
+    [[ -f "$script" && -x "$script" ]] || continue
+    local name
+    name="$(basename "$script")"
+    link_file "$script" "$HOME/.local/bin/$name"
+  done
+
   # 确保 profile.d 目录存在（供其他应用注入环境变量）
   ensure_dir "$HOME/.profile.d"
 }

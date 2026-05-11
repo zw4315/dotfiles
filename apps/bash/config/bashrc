@@ -105,8 +105,11 @@ fi
 # ---- VSCode Dark+ like ls colors (SAFE VERSION) ----
 export LS_COLORS="rs=0:di=1;38;5;75:ln=1;38;5;80:ex=1;38;5;114:fi=38;5;252:so=1;38;5;44:pi=38;5;178:bd=1;38;5;178:cd=1;38;5;178:or=1;38;5;203:mi=1;38;5;203"
 
-alias ls='ls --color=auto'
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  alias ls='ls -G'
+else
+  alias ls='ls --color=auto'
+fi
 
 # 简化 cd
 command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init bash)"
-eval "$(zoxide init bash)"

@@ -83,6 +83,12 @@ app_configure() {
   local src="$DOTFILES/config/mihomo"
   link_config_dir "$src" "mihomo"
 
+  # 链接 mihomo 专用 alias 和函数
+  local aliases_src="$DOTFILES/home/bash_aliases_mihd"
+  if [[ -f "$aliases_src" ]]; then
+    link_home_file "$aliases_src" ".bash_aliases_mihd"
+  fi
+
   # 首次配置：复制模板并提示用户编辑
   local config_dir="$HOME/.config/mihomo"
   local dst="${config_dir}/config.yaml"

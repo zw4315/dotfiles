@@ -19,6 +19,10 @@ app_install() {
 app_configure() {
   local config_dir="$APP_DIR/config"
   link_home_file "$config_dir/tmux.conf" ".tmux.conf"
+
+  # 链接 tmux 布局脚本到 PATH
+  ensure_dir "$HOME/.local/bin"
+  link_file "$DOTFILES/scripts/tmux_layout" "$HOME/.local/bin/tmux_layout"
 }
 
 app_post_install() {

@@ -80,4 +80,3 @@ fi
 
 # uv / 本地环境变量
 [ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"
-eval "$(zoxide init zsh)"
