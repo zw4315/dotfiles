@@ -51,6 +51,7 @@ if command -v rg >/dev/null 2>&1; then
   alias rgi='rg -i'
 fi
 
+alias m='ssh m'
 alias bd='ssh edward@14.103.135.152'
 alias bd2='ssh edward@101.126.23.57'
 alias yc='ssh -p 43568 edward@38.207.176.66'
