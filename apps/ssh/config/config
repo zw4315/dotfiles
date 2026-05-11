@@ -1,0 +1,24 @@
+Host m
+    HostName mini2018.local
+    User edwardwu
+
+Host bd
+    HostName 14.103.135.152
+    User edward
+
+Host bd2
+    HostName 101.126.23.57
+    User edward
+
+Host yc
+    HostName 38.207.176.66
+    Port 43568
+    User edward
+
+Host hd
+    HostName 156.239.24.42
+    User edward
+
+Host centos
+    HostName 43.129.192.176
+    User edward

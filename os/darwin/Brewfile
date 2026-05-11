@@ -1,0 +1,32 @@
+# =============================================================================
+# macOS Brewfile
+# =============================================================================
+# 系统级的基础软件，不随 Profile 变化。
+# 这里的软件会被 bootstrap.sh 安装。
+# =============================================================================
+
+# 基础工具
+brew "coreutils"
+brew "findutils"
+brew "gnu-sed"
+brew "gnu-tar"
+brew "grep"
+brew "curl"
+brew "wget"
+
+# 现代替代工具
+brew "bat"
+brew "eza"
+brew "fd"
+brew "ripgrep"
+brew "jq"
+
+# 开发工具
+brew "git"
+brew "git-delta"
+brew "gh"
+
+# 应用（Cask）
+cask "warp"               # 终端
+cask "visual-studio-code" # 编辑器
+cask "raycast"            # 启动器

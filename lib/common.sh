@@ -1,134 +1,229 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# =============================================================================
+# Dotfiles 共享工具库
+# =============================================================================
+# 这个文件被所有脚本 source，提供基础工具函数。
+# 注意：不包含任何平台特定的逻辑（包管理器等）。
+# =============================================================================
 
-log() { printf '%s\n' "$*"; }
-die() { log "ERROR: $*" >&2; exit 1; }
+# 颜色定义
+if [[ -t 1 ]]; then
+  readonly C_RESET='\033[0m'
+  readonly C_BOLD='\033[1m'
+  readonly C_RED='\033[0;31m'
+  readonly C_GREEN='\033[0;32m'
+  readonly C_YELLOW='\033[0;33m'
+  readonly C_BLUE='\033[0;34m'
+  readonly C_DIM='\033[0;90m'
+else
+  readonly C_RESET=''
+  readonly C_BOLD=''
+  readonly C_RED=''
+  readonly C_GREEN=''
+  readonly C_YELLOW=''
+  readonly C_BLUE=''
+  readonly C_DIM=''
+fi
 
-is_enabled() {
-  local v="${1:-1}"
-  case "$v" in
-    0|off|OFF|false|FALSE|no|NO) return 1 ;;
-    *) return 0 ;;
-  esac
+# =============================================================================
+# 日志与输出
+# =============================================================================
+
+log() {
+  printf "${C_BLUE}→${C_RESET} %s\n" "$1"
 }
 
+log_success() {
+  printf "${C_GREEN}✓${C_RESET} %s\n" "$1"
+}
+
+log_warn() {
+  printf "${C_YELLOW}⚠${C_RESET} %s\n" "$1" >&2
+}
+
+log_info() {
+  printf "${C_DIM}ℹ${C_RESET} %s\n" "$1"
+}
+
+die() {
+  printf "${C_RED}✗${C_RESET} %s\n" "$1" >&2
+  exit 1
+}
+
+# =============================================================================
+# 文件与目录操作
+# =============================================================================
+
+# 确保目录存在
 ensure_dir() {
   local dir="$1"
-  if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
-    log "📁 (dry-run) Ensure dir: $dir"
-    return 0
+  if [[ ! -d "$dir" ]]; then
+    if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
+      log "  [dry-run] Would create directory: $dir"
+    else
+      mkdir -p "$dir"
+    fi
   fi
-  mkdir -p "$dir"
 }
 
-link_one() {
+# 安全地创建符号链接（自动备份已存在的文件）
+link_file() {
   local src="$1"
   local dst="$2"
 
-  if [[ -L "$dst" && "$(readlink "$dst")" == "$src" ]]; then
-    log "✅ $dst already linked"
+  if [[ ! -e "$src" ]]; then
+    log_warn "Source does not exist: $src"
+    return 1
+  fi
+
+  # 如果已经是正确的符号链接，跳过
+  if [[ -L "$dst" ]]; then
+    local current
+    current="$(readlink "$dst")"
+    if [[ "$current" == "$src" ]]; then
+      log_info "  Already linked: $dst"
+      return 0
+    fi
+  fi
+
+  # 备份已存在的文件
+  if [[ -e "$dst" ]]; then
+    local backup="${dst}.backup.$(date +%Y%m%d%H%M%S)"
+    if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
+      log "  [dry-run] Would backup $dst → $backup"
+    else
+      mv "$dst" "$backup"
+      log_info "  Backed up: $dst → $backup"
+    fi
+  fi
+
+  # 确保目标目录存在
+  ensure_dir "$(dirname "$dst")"
+
+  if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
+    log "  [dry-run] Would link: $src → $dst"
+  else
+    ln -sfn "$src" "$dst"
+    log_success "  Linked: $dst"
+  fi
+}
+
+# 链接配置目录（XDG 风格）
+link_config_dir() {
+  local src="$1"
+  local name="$2"
+  local dst="${XDG_CONFIG_HOME:-$HOME/.config}/$name"
+  link_file "$src" "$dst"
+}
+
+# 链接单个配置文件到 $HOME
+link_home_file() {
+  local src="$1"
+  local name="$2"
+  local dst="$HOME/$name"
+  link_file "$src" "$dst"
+}
+
+# =============================================================================
+# 平台无关的包管理器抽象
+# =============================================================================
+# 以下函数需要被 lib/darwin.sh, lib/linux.sh 等覆盖实现
+# =============================================================================
+
+# 检查命令是否存在
+has_cmd() {
+  command -v "$1" &>/dev/null
+}
+
+# 安装包（需要在 OS 层实现）
+pkg_install() {
+  die "pkg_install() not implemented for this OS"
+}
+
+# 检查包是否已安装（需要在 OS 层实现）
+pkg_is_installed() {
+  die "pkg_is_installed() not implemented for this OS"
+}
+
+# 根据 App 元数据自动选择包名安装
+pkg_install_auto() {
+  local app_name="$1"
+
+  # 查找 App 的包名声明
+  local brew_var="APP_BREW_FORMULA"
+  local apt_var="APP_APT_PACKAGE"
+  local winget_var="APP_WINGET_ID"
+
+  # 注意：这些变量需要在 source app.sh 后设置
+  local pkg_name=""
+
+  case "${DETECTED_OS:-}" in
+    darwin)
+      pkg_name="${!brew_var:-}"
+      ;;
+    linux)
+      pkg_name="${!apt_var:-}"
+      ;;
+    windows)
+      pkg_name="${!winget_var:-}"
+      ;;
+  esac
+
+  if [[ -z "$pkg_name" ]]; then
+    log_warn "  No package name defined for $app_name on $DETECTED_OS"
+    return 1
+  fi
+
+  if pkg_is_installed "$pkg_name"; then
+    log_info "  Already installed: $pkg_name"
     return 0
   fi
 
-  if [[ -e "$dst" && ! -L "$dst" ]]; then
-    local backup="${dst}.backup.$(date +%s)"
-    if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
-      log "💾 (dry-run) Backup $dst -> $backup"
-    else
-      mv "$dst" "$backup"
-      log "💾 Backup $dst"
+  log "  Installing: $pkg_name"
+  pkg_install "$pkg_name"
+}
+
+# =============================================================================
+# Git 相关工具
+# =============================================================================
+
+git_clone_or_pull() {
+  local repo="$1"
+  local dest="$2"
+  local branch="${3:-main}"
+
+  if [[ -d "$dest/.git" ]]; then
+    log "  Updating: $dest"
+    if [[ "${DRY_RUN:-0}" -eq 0 ]]; then
+      (cd "$dest" && git pull --ff-only)
     fi
+  else
+    log "  Cloning: $repo → $dest"
+    if [[ "${DRY_RUN:-0}" -eq 0 ]]; then
+      git clone --depth 1 --branch "$branch" "$repo" "$dest"
+    fi
+  fi
+}
+
+# =============================================================================
+# Shell 配置注入
+# =============================================================================
+
+# 向指定 shell 配置文件添加一行（避免重复）
+append_if_missing() {
+  local line="$1"
+  local file="$2"
+
+  ensure_dir "$(dirname "$file")"
+
+  if [[ -f "$file" ]] && grep -Fxq "$line" "$file"; then
+    return 0
   fi
 
   if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
-    log "🔗 (dry-run) Linked $dst → $src"
+    log "  [dry-run] Would append to $file: $line"
   else
-    ln -sfn "$src" "$dst"
-    log "🔗 Linked $dst → $src"
+    echo "$line" >> "$file"
+    log_info "  Appended to $file"
   fi
 }
-
-# 配置解析函数
-declare -gA PACKAGE_GROUPS
-declare -gA PRESETS_CONFIG
-
-# 解析多行值的配置文件
-# 格式: key=
-#   value1
-#   value2
-parse_multiline_config() {
-  local file="$1"
-  local -n dest="$2"
-  
-  local current_key=""
-  local current_values=""
-  
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    # 跳过注释和空行
-    [[ "$line" =~ ^[[:space:]]*# ]] && continue
-    [[ -z "${line// /}" ]] && continue
-    
-    # 检查是否是新的 key= 行
-    if [[ "$line" =~ ^[[:space:]]*([^=]+)=[[:space:]]*$ ]]; then
-      # 保存之前的 key
-      if [[ -n "$current_key" ]]; then
-        dest["$current_key"]="$current_values"
-      fi
-      # 开始新的 key
-      current_key="${BASH_REMATCH[1]}"
-      current_key="${current_key// /}"  # 去除空格
-      current_values=""
-    elif [[ -n "$current_key" && "$line" =~ ^[[:space:]]+([^[:space:]].*)$ ]]; then
-      # 这是值行（缩进开头）
-      local value="${BASH_REMATCH[1]}"
-      # 去除行尾注释
-      value="${value%%#*}"
-      # 去除首尾空格
-      value="${value#"${value%%[![:space:]]*}"}"
-      value="${value%"${value##*[![:space:]]}"}"
-      
-      if [[ -n "$value" ]]; then
-        if [[ -z "$current_values" ]]; then
-          current_values="$value"
-        else
-          current_values="$current_values $value"
-        fi
-      fi
-    fi
-  done < "$file"
-  
-  # 保存最后一个 key
-  if [[ -n "$current_key" ]]; then
-    dest["$current_key"]="$current_values"
-  fi
-}
-
-# 加载包配置
-load_package_config() {
-  local pkg_file="${DOTFILES}/config/packages.conf"
-  local preset_file="${DOTFILES}/config/presets.conf"
-  
-  if [[ ! -f "$pkg_file" ]]; then
-    die "Package config not found: $pkg_file"
-  fi
-  
-  if [[ ! -f "$preset_file" ]]; then
-    die "Preset config not found: $preset_file"
-  fi
-  
-  parse_multiline_config "$pkg_file" PACKAGE_GROUPS
-  parse_multiline_config "$preset_file" PRESETS_CONFIG
-}
-
-# 获取预设包含的组列表
-get_preset_groups() {
-  local preset="$1"
-  echo "${PRESETS_CONFIG[$preset]:-}"
-}
-
-# 获取组包含的包列表
-get_group_packages() {
-  local group="$1"
-  echo "${PACKAGE_GROUPS[$group]:-}"
-}
-

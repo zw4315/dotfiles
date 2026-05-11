@@ -1,0 +1,30 @@
+# ~/.profile: executed by the command interpreter for login shells.
+#
+# This file is intended to be POSIX-sh compatible.
+
+# Add user bins early (common PATH for all tools installed to user directory)
+export PATH="$HOME/.local/bin:$PATH"
+export PATH="$HOME/bin:$PATH"
+
+# Load all software-specific configurations from profile.d
+# Each module installs its own config file here
+if [ -d "$HOME/.profile.d" ]; then
+  for f in "$HOME/.profile.d/"*.sh; do
+    [ -e "$f" ] || continue
+    [ -r "$f" ] || continue
+    . "$f"
+  done
+fi
+
+# If this is an interactive Bash login shell, also load ~/.bashrc
+# so aliases/functions are available (some terminals start login shells).
+if [ -n "${BASH_VERSION:-}" ]; then
+  case $- in
+    *i*)
+      DOTFILES_BASHRC_FROM_PROFILE=1
+      export DOTFILES_BASHRC_FROM_PROFILE
+      [ -r "$HOME/.bashrc" ] && . "$HOME/.bashrc"
+      unset DOTFILES_BASHRC_FROM_PROFILE
+      ;;
+  esac
+fi

@@ -1,0 +1,73 @@
+[user]
+  name = Edward
+  email = edward@example.com
+
+[core]
+  autocrlf = input
+  safecrlf = true
+  whitespace = trailing-space,space-before-tab
+  excludesfile = ~/.gitignore_global
+
+[init]
+  defaultBranch = main
+
+[push]
+  default = simple
+  autoSetupRemote = true
+
+[pull]
+  rebase = true
+
+[fetch]
+  prune = true
+
+[merge]
+  conflictstyle = diff3
+
+[diff]
+  colorMoved = zebra
+
+[color]
+  ui = auto
+
+[alias]
+  # Basic shortcuts
+  st = status -sb
+  co = checkout
+  br = branch
+  ci = commit
+  cp = cherry-pick
+
+  # Log with graph
+  lg = log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
+  lga = log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --all
+
+  # Diff
+  d = diff
+  dc = diff --cached
+  ds = diff --stat
+
+  # Undo helpers
+  unstage = reset HEAD --
+  uncommit = reset --soft HEAD^
+  rsh = reset --soft HEAD^
+  undo = checkout --
+
+  # Branch management
+  brm = branch --merged
+  brnm = branch --no-merged
+  brd = branch -d
+  brD = branch -D
+
+  # Stash
+  sl = stash list
+  sp = stash pop
+  ss = stash save
+
+[help]
+  autocorrect = 20
+
+[rerere]
+  enabled = true
+[credential]
+	helper = osxkeychain

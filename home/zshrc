@@ -1,0 +1,83 @@
+# =============================================================================
+# Zsh configuration
+# =============================================================================
+# macOS 默认 shell 为 zsh，本文件提供与 bash 等价的体验。
+# =============================================================================
+
+# compinstall marker
+zstyle :compinstall filename "$HOME/.zshrc"
+
+# 如果 bash 配置文件存在，source 它们以复用通用配置
+[[ -f ~/.profile ]] && source ~/.profile
+[[ -f ~/.bash_aliases ]] && source ~/.bash_aliases
+[[ -f ~/.proxyrc ]] && source ~/.proxyrc
+
+# 确保 ~/.local/bin 在 PATH 中
+export PATH="$HOME/.local/bin:$PATH"
+
+# Zsh 历史记录配置
+HISTFILE=~/.zsh_history
+HISTSIZE=10000
+SAVEHIST=10000
+setopt appendhistory
+setopt incappendhistory
+setopt sharehistory
+
+# 启用一些有用的 zsh 选项
+setopt autocd
+setopt extendedglob
+setopt nomatch
+setopt notify
+unsetopt beep
+
+# 补全系统
+autoload -Uz compinit
+compinit
+
+# 提示符
+PROMPT='%n@%m:%~$ '
+
+# ==========================================
+# 自定义 rsync 快捷方式
+# ==========================================
+rs() {
+    if [ $# -lt 2 ]; then
+        echo "🚀 Usage: rs <source> <target>"
+        echo "   (支持自动识别远程路径，格式为 host:path)"
+        echo ""
+        echo "   Examples:"
+        echo "   rs m:repo/calx .           # 下载 (远程 -> 本地)"
+        echo "   rs ./localfile m:repo/     # 上传 (本地 -> 远程)"
+        echo "   rs m:file1 m:file2         # 远程拷贝 (需配置免密)"
+        return 1
+    fi
+
+    local src="$1"
+    local dst="$2"
+
+    rsync -avzP "$src" "$dst"
+}
+
+compdef _rsync rs
+
+# 远程补全（ssh/scp）
+zstyle ':completion:*:*:scp:*' tag-order 'users:hosts'
+zstyle ':completion:*:*:ssh:*' tag-order 'users:hosts'
+
+# ==========================================
+# 工具集成
+# ==========================================
+
+# Zoxide
+if command -v zoxide >/dev/null 2>&1; then
+  eval "$(zoxide init zsh)"
+fi
+
+# Fzf
+if command -v fzf >/dev/null 2>&1; then
+  source <(fzf --zsh 2>/dev/null) || true
+fi
+
+# uv / 本地环境变量
+[ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"
+eval "$(zoxide init zsh)"

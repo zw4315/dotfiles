@@ -3,3 +3,14 @@ tmux*.log
 .nvimlog
 config/nvim.pre_lazyvim.*
 config/nvim/lazyvim.json
+
+# Vim swap files
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Backup files
+*~
+home/vim/plugged/

@@ -1,0 +1,38 @@
+# =============================================================================
+# macOS 安装清单
+# =============================================================================
+# 用法：把想装的 App 设为 true，不想装的设为 false 或注释掉。
+# 修改后保存，运行 ./init.sh 即可生效。
+# 查看所有可用 App：./init.sh --list-apps
+# 检查当前状态：./init.sh --check
+# =============================================================================
+
+[core]
+bash   = true   # Shell 配置（含 zshrc，macOS 默认 shell）
+git    = true   # Git 版本控制
+ssh    = true   # SSH 客户端配置
+zoxide = true   # 智能目录跳转
+
+[editor]
+nvim = flase   # Neovim 编辑器
+vim  = true   # 传统 Vim 编辑器
+tmux = false   # 终端复用器
+
+[search]
+fd  = true   # 替代 find，更快更友好
+rg  = true   # 替代 grep，递归搜索
+fzf = true   # 命令行模糊查找
+
+# === 语言环境（按需开启）===
+# 以下工具默认关闭。如果你在 macOS 上有对应开发需求，请改为 true。
+[language]
+go     = false   # Go 语言（通常不在 macOS 上开发 Go）
+node   = false   # Node.js via nvm
+python = false   # Python via uv
+rust   = false   # Rust via rustup
+
+# === 开发工具（按需开启）===
+[devtool]
+ctags        = true   # Universal Ctags 代码标签
+global       = true   # GNU Global 代码导航
+clang-format = true   # 代码格式化

@@ -2,7 +2,9 @@
 
 ## Overview
 
-This is a dotfiles repository containing configuration files for development tools (bash, tmux, vim, neovim, git) and shell scripts for environment setup. The repository uses an XDG-mirror layout with modular installation.
+This is a dotfiles repository containing configuration files for development tools (bash, zsh, tmux, vim, neovim, git) and shell scripts for environment setup. It supports macOS (Darwin), Linux, and Windows.
+
+The repository uses a **three-layer architecture**: Manifest → App → OS.
 
 ## Build/Test/Lint Commands
 
@@ -12,11 +14,16 @@ This is a dotfiles repository containing configuration files for development too
 # Dry run to see what would be linked
 ./init.sh --dry-run
 
-# Apply configurations (default: ubuntu profile)
+# Apply default manifest for current OS
 ./init.sh
 
-# With specific profile
-DOTFILES_PROFILE=ubuntu ./init.sh
+# With specific app
+./init.sh --app git --dry-run
+./init.sh --app git
+
+# Single app only
+./init.sh --app git --dry-run
+./init.sh --app git
 ```
 
 ### Testing Changes
@@ -33,12 +40,11 @@ Shell scripts should pass [shellcheck](https://www.shellcheck.net/):
 
 ```bash
 # Install shellcheck if needed
-apt install shellcheck  # Ubuntu
+brew install shellcheck  # macOS
+apt install shellcheck   # Ubuntu
 
-# Lint a shell script
-shellcheck scripts/proxy
-shellcheck modules/nvim.sh
-shellcheck lib/common.sh
+# Lint shell scripts
+shellcheck init.sh lib/*.sh apps/*/app.sh os/*/*.sh
 ```
 
 For Lua (neovim config), use [stylua](https://github.com/astral-sh/stylua) for formatting:
@@ -72,80 +78,113 @@ Based on LazyVim. See `config/nvim/stylua.toml` for formatting rules.
 - Use `opts = {}` for plugin options
 - File structure: `init.lua` - entry point, `lua/plugins/` - plugin specs, `lua/config/` - user config
 
-### Module System
+## App System
 
-Modules in `modules/*.sh` follow this pattern:
+Apps in `apps/<name>/app.sh` follow this pattern:
 
 ```bash
 #!/usr/bin/env bash
 
-module_main() {
-  local value="${1:-1}"
-  is_enabled "$value" || { log "⏭️  module disabled"; return 0; }
-  
-  # module logic here
+APP_NAME="foo"
+APP_DESC="Foo tool"
+APP_DEPS=()
+
+APP_BREW_FORMULA="foo"     # macOS package name (optional)
+APP_APT_PACKAGE="foo"      # Linux package name (optional)
+APP_WINGET_ID="Foo.Foo"    # Windows package ID (optional)
+
+app_install() {
+  pkg_install_auto "$APP_NAME"
 }
 
-# Allow running module directly for testing
-if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-  set -euo pipefail
-  DOTFILES="${DOTFILES:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-  # shellcheck source=/dev/null
-  source "$DOTFILES/lib/common.sh"
-  module_main "${1:-1}"
-fi
-```
+app_configure() {
+  link_home_file "$APP_DIR/config/foo.conf" ".foo.conf"
+}
 
-### Profile System
-
-Profiles in `profiles/*.sh` define enabled modules:
-```bash
-dotfiles_profile_apply() {
-  cat <<'EOF'
-nvim=1
-tmux=1
-git=1
-EOF
+app_post_install() {
+  log_info "  Foo is ready"
 }
 ```
+
+**Platform overrides**: Create `apps/<name>/darwin.sh` or `apps/<name>/linux.sh` to override functions for specific platforms. The override file is sourced after `app.sh`, so redefining a function replaces it.
+
+### Manifest System
+
+Manifests in `manifests/${DETECTED_OS}.toml` define the list of apps to install for each OS:
+
+```toml
+[core]
+bash   = true
+git    = true
+zoxide = true
+
+[editor]
+nvim = true
+tmux = true
+
+[devtool]
+ctags        = true
+global       = true
+clang-format = true
+```
+
+`init.sh` reads the manifest for the detected OS and installs only the apps marked `true`.
 
 ### Helper Functions (lib/common.sh)
 
 Available from `lib/common.sh`:
 
 - `log "message"` - print info message to stdout
+- `log_success "message"` - print success message
+- `log_warn "message"` - print warning to stderr
+- `log_info "message"` - print dim info message
 - `die "message"` - print error to stderr and exit 1
-- `is_enabled "value"` - returns 0 if enabled (1, on, true, yes)
+- `has_cmd "cmd"` - check if command exists
 - `ensure_dir "/path"` - create directory if not exists
-- `link_one "$src" "$dst"` - create symlink (with backup of existing files)
+- `link_file "$src" "$dst"` - create symlink (with backup of existing files)
+- `link_home_file "$src" "$name"` - link to `$HOME/$name`
+- `link_config_dir "$src" "$name"` - link to `~/.config/$name`
+- `pkg_install_auto "$app_name"` - install using OS-specific package manager
 
-### Adding New Modules
+### Adding a New App
 
-1. Create `modules/<name>.sh` with `module_main` function
-2. Add to profile in `profiles/ubuntu.sh` as `<name>=1`
-3. Test with `./init.sh --dry-run`
-4. Use shellcheck to validate: `shellcheck modules/<name>.sh`
+1. Create directory: `mkdir -p apps/<name>/config`
+2. Create `apps/<name>/app.sh` with the standard template above
+3. Declare platform-specific package names if needed (`APP_BREW_FORMULA`, `APP_APT_PACKAGE`)
+4. Add `<name>` to `manifests/${OS}.toml` for target OS(s)
+5. Test with `./init.sh --app <name> --dry-run`
+6. Use `bash -n` to validate syntax: `bash -n apps/<name>/app.sh`
 
 ### Dotfile Linking Patterns
 
 - Root-level dotfiles go in `home/` (e.g., `home/bashrc` → `~/.bashrc`)
 - XDG config files go in `config/` (e.g., `config/nvim/` → `~/.config/nvim`)
+- App-specific shared configs go in `apps/<name>/config/` (e.g., `apps/git/config/gitconfig`)
 - Scripts go in `scripts/` (can be linked to `~/.local/bin/`)
+- Shell env snippets go in `home/profile.d/` (sourced by `~/.profile` and `~/.zprofile`)
 
 ## Repository Structure
 
 | Directory | Purpose |
 |-----------|---------|
 | `init.sh` | Main entry point for applying dotfiles |
-| `lib/` | Shared helper functions (common.sh, appimage.sh, etc.) |
-| `modules/` | Installable modules (nvim.sh, tmux.sh, git.sh, etc.) |
-| `profiles/` | OS-specific module selections (ubuntu.sh, windows.sh) |
-| `home/` | Dotfiles linked to `$HOME` (bashrc, gitconfig, etc.) |
+| `lib/` | Shared helper functions (common.sh, darwin.sh, linux.sh, etc.) |
+| `apps/` | Installable apps (bash, git, nvim, go, node, rust, etc.) |
+| `manifests/` | OS-based app manifests (darwin.toml, linux.toml) + catalog.toml |
+| `os/` | OS-specific bootstrap and defaults (darwin, linux) |
+| `home/` | Dotfiles linked to `$HOME` (bashrc, zshrc, gitconfig, profile.d, etc.) |
 | `config/` | XDG config directories (nvim, mihomo) |
 | `scripts/` | Standalone helper scripts (proxy, yank, hfget) |
+| `archive/` | Archived legacy code (old modules/) |
+
+## macOS Notes
+
+- Default shell is zsh, so `apps/bash/app.sh` links `.zshrc` and `.zprofile` on macOS
+- Package manager is Homebrew (`lib/darwin.sh`)
+- `apps/<name>/darwin.sh` can override any app behavior for macOS
+- Run `os/darwin/defaults.sh` to apply system preferences
 
 ## Environment Variables
 
 - `DOTFILES` - path to dotfiles repository (auto-detected from script location)
-- `DOTFILES_PROFILE` - profile to use (ubuntu, windows)
 - `DRY_RUN` - set to 1 to preview changes without applying

@@ -1,198 +1,582 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DOTFILES="${DOTFILES:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+# =============================================================================
+# Dotfiles 主入口脚本
+# =============================================================================
+# 用法:
+#   ./init.sh                    # 按当前 OS 的清单安装
+#   ./init.sh --dry-run          # 预览模式
+#   ./init.sh --check            # 检查已安装/缺失/未启用的 App
+#   ./init.sh --list-apps        # 列出所有可用 App
+#   ./init.sh --app git          # 只安装/配置单个 App
+# =============================================================================
 
+# 基础路径
+DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export DOTFILES
+
+# 导入共享库
 # shellcheck source=/dev/null
 source "$DOTFILES/lib/common.sh"
 
-# Preset 选择（默认 dev）
-PRESET="dev"
-DRY_RUN="${DRY_RUN:-0}"
+# 全局状态
+DRY_RUN=0
+TARGET_APP=""
+MODE="install"   # install | check | list-apps
 
-show_brief_usage() {
-  cat <<'EOF'
-Usage: ./init.sh [PRESET] [options]
+# =============================================================================
+# TOML 解析
+# =============================================================================
+# 简单 TOML 解析器，支持 [section] 和 key = value（含引号字符串）
+# 输出格式: section.key=value
+# =============================================================================
+toml_parse() {
+  local file="$1"
+  local section=""
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    # 去掉行首空白
+    line="${line#"${line%%[![:space:]]*}"}"
+    # 跳过注释和空行
+    [[ -z "$line" || "$line" == \#* ]] && continue
 
-Presets:
-  --min       最小安装 (core + editors + dev-env)
-  --dev       开发完整 (默认)
-  --full      全部安装
+    # 匹配 [section]
+    if [[ "$line" =~ ^\[([a-zA-Z0-9_-]+)\][[:space:]]*$ ]]; then
+      section="${BASH_REMATCH[1]}"
+      continue
+    fi
 
-Run './init.sh --help' for full usage.
-EOF
+    # 匹配 key = value
+    if [[ "$line" =~ ^([a-zA-Z0-9_-]+)[[:space:]]*=[[:space:]]*(.+)$ ]]; then
+      local key="${BASH_REMATCH[1]}"
+      local value="${BASH_REMATCH[2]}"
+      # 去掉首尾引号
+      value="${value#\"}"
+      value="${value%\"}"
+      value="${value#\'}"
+      value="${value%\'}"
+      # 去掉行尾注释
+      value="${value%%#*}"
+      # trim 左右空白
+      value="${value#"${value%%[![:space:]]*}"}"
+      value="${value%"${value##*[![:space:]]}"}"
+      echo "${section}.${key}=${value}"
+    fi
+  done < "$file"
 }
 
-show_full_help() {
-  cat <<'EOF'
-Usage: ./init.sh [PRESET] [options]
+# 从 catalog.toml 构建 App 元数据
+# 注意：使用 eval 模拟关联数组以兼容 bash 3.2 (macOS 默认)
+# CATALOG_APPS 是普通数组，存储所有 App 名称列表
 
-Presets:
-  --min       最小安装 (core + editors + dev-env)
-  --dev       开发完整 (默认，包含 dev-tools)
-  --full      全部安装 (包含可选组件)
+load_catalog() {
+  local catalog="$DOTFILES/manifests/catalog.toml"
+  if [[ ! -f "$catalog" ]]; then
+    die "Catalog not found: $catalog"
+  fi
 
-Options:
-  --dry-run   预览更改
-  --help      显示帮助
+  CATALOG_APPS=()
+  while IFS='=' read -r key value; do
+    [[ -z "$key" ]] && continue
+    local app_name="${key%%.*}"
+    local attr="${key#*.}"
 
-Examples:
-  ./init.sh --min           # 最小安装
-  ./init.sh --dev           # 开发完整（默认）
-  ./init.sh --full          # 全部安装
-  ./init.sh --min --dry-run # 预览最小安装
+    # 记录 App 名称列表（去重）
+    local found=0
+    local a
+    for a in "${CATALOG_APPS[@]:-}"; do
+      if [[ "$a" == "$app_name" ]]; then
+        found=1
+        break
+      fi
+    done
+    if [[ "$found" -eq 0 ]]; then
+      CATALOG_APPS+=("$app_name")
+    fi
 
-Environment variables:
-  DOTFILES             Dotfiles repo path (default: this directory)
-  DOTFILES_PROFILE     Profile name (ubuntu|windows). Default: auto-detect
-  DRY_RUN              1 to enable dry-run (same as --dry-run)
-EOF
+    local safe_name
+    safe_name="$(_safe_var_name "$app_name")"
+    # 对 value 中的双引号转义，然后用双引号包裹赋值
+    local dq='"'
+    local escaped_value="${value//$dq/\\\"}"
+    case "$attr" in
+      desc)
+        eval "APP_DESC_${safe_name}=\"$escaped_value\""
+        ;;
+      platforms)
+        eval "APP_PLATFORM_${safe_name}=\"$escaped_value\""
+        ;;
+      group)
+        eval "APP_GROUP_${safe_name}=\"$escaped_value\""
+        ;;
+    esac
+  done < <(toml_parse "$catalog")
 }
 
-detect_os_profile() {
-  local u
-  u="$(uname -s 2>/dev/null || echo unknown)"
-  case "$u" in
-    Linux*) echo ubuntu ;;
-    Darwin*) echo ubuntu ;; # treat all unix-like as ubuntu for now
-    MINGW*|MSYS*|CYGWIN*) echo windows ;;
-    *) echo ubuntu ;;
+# 从当前 OS 的清单读取要安装的 App
+declare -a MANIFEST_APPS=()
+
+load_manifest() {
+  local manifest="$DOTFILES/manifests/${DETECTED_OS}.toml"
+  if [[ ! -f "$manifest" ]]; then
+    die "Manifest not found for OS '${DETECTED_OS}': $manifest"
+  fi
+
+  MANIFEST_APPS=()
+  while IFS='=' read -r key value; do
+    [[ -z "$key" ]] && continue
+    # toml_parse 输出格式: section.key=value
+    # 例如: core.bash=true
+    # App 名是 key 部分（bash），value 是开关（true/false）
+    local app_name="${key#*.}"
+    if [[ "$value" == "true" ]]; then
+      MANIFEST_APPS+=("$app_name")
+    fi
+  done < <(toml_parse "$manifest")
+}
+
+# 安全的变量名（bash 变量名不能含连字符）
+_safe_var_name() {
+  printf '%s' "$1" | tr '-' '_'
+}
+
+# 获取 App 的平台限制（兼容 bash 3.2）
+_app_platforms() {
+  local app_name="$1"
+  local var_name
+  var_name="$(_safe_var_name "$app_name")"
+  eval "printf '%s' \"\${APP_PLATFORM_${var_name}:-}\""
+}
+
+# 获取 App 描述（兼容 bash 3.2）
+_app_desc() {
+  local app_name="$1"
+  local var_name
+  var_name="$(_safe_var_name "$app_name")"
+  eval "printf '%s' \"\${APP_DESC_${var_name}:-}\""
+}
+
+# 获取 App 分组（兼容 bash 3.2）
+_app_group() {
+  local app_name="$1"
+  local var_name
+  var_name="$(_safe_var_name "$app_name")"
+  eval "printf '%s' \"\${APP_GROUP_${var_name}:-other}\""
+}
+
+# 检查 App 是否在当前平台支持
+app_is_supported() {
+  local app_name="$1"
+  local platforms
+  platforms="$(_app_platforms "$app_name")"
+  [[ -z "$platforms" ]] && return 0
+
+  # 解析 platforms = ["darwin", "linux"]
+  platforms="${platforms//\[/}"
+  platforms="${platforms//\]/}"
+  platforms="${platforms//\"/}"
+  platforms="${platforms//\'/}"
+  platforms="${platforms//,/ }"
+
+  for p in $platforms; do
+    [[ "$p" == "$DETECTED_OS" ]] && return 0
+  done
+  return 1
+}
+
+# 检查 App 是否已安装（通过 pkg_is_installed 或 has_cmd）
+app_is_installed() {
+  local app_name="$1"
+
+  # 先尝试用包管理器检查
+  local brew_var="APP_BREW_FORMULA"
+  local apt_var="APP_APT_PACKAGE"
+  local pkg_name=""
+
+  # 需要临时加载 app.sh 来获取包名变量
+  local app_script="$DOTFILES/apps/$app_name/app.sh"
+  if [[ -f "$app_script" ]]; then
+    # 用子 shell 读取变量，避免污染当前环境
+    pkg_name="$(bash -c "
+      DETECTED_OS='$DETECTED_OS'
+      source '$app_script' >/dev/null 2>&1
+      case '\$DETECTED_OS' in
+        darwin) echo '\${APP_BREW_FORMULA:-}' ;;
+        linux)  echo '\${APP_APT_PACKAGE:-}' ;;
+      esac
+    ")"
+  fi
+
+  if [[ -n "$pkg_name" ]]; then
+    if pkg_is_installed "$pkg_name" 2>/dev/null; then
+      return 0
+    fi
+  fi
+
+  #  fallback：检查命令是否存在（根据 App 名或常见命令名映射）
+  case "$app_name" in
+    node) has_cmd node || has_cmd npm ;;
+    python) has_cmd python3 || has_cmd python ;;
+    rust) [[ -x "$HOME/.cargo/bin/rustc" ]] || has_cmd rustc ;;
+    global) has_cmd gtags ;;
+    rg) has_cmd rg ;;
+    fd) has_cmd fd ;;
+    fzf) has_cmd fzf ;;
+    ctags) has_cmd ctags ;;
+    clang-format) has_cmd clang-format ;;
+    mihomo) has_cmd mihomo || has_cmd clash ;;
+    *) has_cmd "$app_name" ;;
   esac
 }
 
-PROFILE_NAME="${DOTFILES_PROFILE:-$(detect_os_profile)}"
-PROFILE_PATH="$DOTFILES/profiles/${PROFILE_NAME}.sh"
-
-# 解析参数
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --min|--minimal) PRESET="minimal"; shift ;;
-    --dev|--develop) PRESET="dev"; shift ;;
-    --full|--complete) PRESET="full"; shift ;;
-    --dry-run) DRY_RUN=1; shift ;;
-    --help|-h) show_full_help; exit 0 ;;
-    --*) 
-      echo "Error: Unknown flag '$1'" >&2
-      show_brief_usage >&2
-      exit 1
+# =============================================================================
+# OS 检测
+# =============================================================================
+detect_os() {
+  case "$OSTYPE" in
+    linux*)
+      DETECTED_OS="linux"
       ;;
-    *) 
-      echo "Error: Unknown argument '$1'" >&2
-      show_brief_usage >&2
-      exit 1
+    darwin*)
+      DETECTED_OS="darwin"
+      ;;
+    msys* | cygwin* | win32*)
+      DETECTED_OS="windows"
+      ;;
+    *)
+      die "Unsupported OS: $OSTYPE"
       ;;
   esac
-done
 
-[[ -f "$PROFILE_PATH" ]] || die "Profile not found: $PROFILE_PATH"
+  log "Detected OS: $DETECTED_OS"
 
-load_os_profile() {
-  # Ensure the function comes from the profile we load (not from the environment).
-  unset -f dotfiles_profile_apply 2>/dev/null || true
+  # 加载 OS 特定的库
+  local os_lib="$DOTFILES/lib/${DETECTED_OS}.sh"
+  if [[ -f "$os_lib" ]]; then
+    # shellcheck source=/dev/null
+    source "$os_lib"
+  else
+    die "OS library not found: $os_lib"
+  fi
+}
+
+# =============================================================================
+# App 调度器（复用之前的 run_app）
+# =============================================================================
+run_app() {
+  local app_name="$1"
+  local app_dir="$DOTFILES/apps/$app_name"
+
+  if [[ ! -d "$app_dir" ]]; then
+    log_warn "App '$app_name' not found in apps/, skipping"
+    return 0
+  fi
+
+  # 加载 App 定义
+  local app_script="$app_dir/app.sh"
+  if [[ ! -f "$app_script" ]]; then
+    log_warn "App '$app_name' missing app.sh, skipping"
+    return 0
+  fi
+
+  # 设置当前 App 上下文变量
+  export APP_DIR="$app_dir"
+  export APP_NAME="$app_name"
 
   # shellcheck source=/dev/null
-  source "$PROFILE_PATH"
+  source "$app_script"
 
-  declare -F dotfiles_profile_apply >/dev/null 2>&1 \
-    || die "Profile must define dotfiles_profile_apply(): $PROFILE_PATH"
-}
-
-run_module_entry() {
-  local entry="$1"
-  local name value script
-  
-  # 为了点兼容性，else 里写的是 格式1：只有模块名（默认启用，value=1）MODULES=(nvim git)
-  if [[ "$entry" == *"="* ]]; then
-    name="${entry%%=*}"
-    value="${entry#*=}"
-  else
-    name="$entry"
-    value="1"
-  fi
-
-  script="$DOTFILES/modules/${name}.sh"
-  [[ -f "$script" ]] || die "Module script not found: $script"
-
-  if [[ "$DRY_RUN" -eq 1 ]]; then
-    log "▶ module: $name=$value ($script)"
-  else
-    log "▶ module: $name=$value"
-  fi
-
-  # 这里的 () 更像一个 RAII
-  (
-    set -euo pipefail
-    # Run each module in its own subshell:
-    # - keeps modules isolated (no leaking options/functions)
-    # - allows sharing helpers from lib/common.sh without re-sourcing in every module
+  # 加载平台覆盖（如果存在）
+  local os_override="$app_dir/${DETECTED_OS}.sh"
+  if [[ -f "$os_override" ]]; then
     # shellcheck source=/dev/null
-    source "$script"
-    module_main "$value"
-  )
+    source "$os_override"
+  fi
+
+  # OS 兼容性检查
+  if [[ -n "${APP_SUPPORTED_OS:-}" ]]; then
+    local supported=0
+    local os
+    for os in "${APP_SUPPORTED_OS[@]}"; do
+      if [[ "$os" == "$DETECTED_OS" ]]; then
+        supported=1
+        break
+      fi
+    done
+    if [[ "$supported" -eq 0 ]]; then
+      log_info "  Skipping '$app_name' (not supported on $DETECTED_OS)"
+      unset APP_DIR APP_NAME
+      return 0
+    fi
+  fi
+
+  log ""
+  log "▶ Processing app: $app_name"
+
+  # 执行生命周期
+  if type app_install &>/dev/null; then
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+      log "  [dry-run] Would run app_install()"
+    else
+      app_install || die "Failed to install app: $app_name"
+    fi
+  fi
+
+  if type app_configure &>/dev/null; then
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+      log "  [dry-run] Would run app_configure()"
+    else
+      app_configure || die "Failed to configure app: $app_name"
+    fi
+  fi
+
+  if type app_post_install &>/dev/null; then
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+      log "  [dry-run] Would run app_post_install()"
+    else
+      app_post_install || log_warn "Post-install failed for: $app_name"
+    fi
+  fi
+
+  # 清理环境
+  unset APP_DIR APP_NAME
 }
 
-# 加载配置文件
-load_package_config
+apply_manifest() {
+  log ""
+  log "========================================"
+  log "Applying manifest for: $DETECTED_OS"
+  log "Apps: ${MANIFEST_APPS[*]}"
+  log "========================================"
 
-# 从配置获取组列表
-PRESET_GROUPS=$(get_preset_groups "$PRESET")
+  for app in "${MANIFEST_APPS[@]}"; do
+    run_app "$app"
+  done
 
-log "Dotfiles: $DOTFILES"
-log "Profile:  $PROFILE_NAME ($PROFILE_PATH)"
-log "Preset:   $PRESET"
-log "Dry-run:  $DRY_RUN"
+  # OS 层收尾
+  local os_defaults="$DOTFILES/os/$DETECTED_OS/defaults.sh"
+  if [[ -f "$os_defaults" ]]; then
+    log ""
+    log "▶ Applying OS defaults"
+    # shellcheck source=/dev/null
+    source "$os_defaults"
+  fi
 
-if [[ -z "$PRESET_GROUPS" ]]; then
-  die "No groups defined for preset: $PRESET"
-fi
+  log ""
+  log "✓ Done!"
+}
 
-log "Groups:   $PRESET_GROUPS"
-log ""
+# =============================================================================
+# --check 模式
+# =============================================================================
+check_apps() {
+  log ""
+  log "========================================"
+  log "Checking apps for: $DETECTED_OS"
+  log "========================================"
 
-# 显示配置文件中的包清单（安装前让用户知道要装什么）
-log "📋 Package manifest:"
-for group in $PRESET_GROUPS; do
-  packages=$(get_group_packages "$group")
-  log "  [$group]: $packages"
-done
-log ""
+  local -a installed=()
+  local -a missing=()
+  local -a disabled=()
+  local -a unsupported=()
 
-# 执行每个组对应的模块
-for group in $PRESET_GROUPS; do
-  # 先尝试找带数字前缀的模块 (如 00-core.sh)
-  script=""
-  for f in "$DOTFILES/modules/"[0-9][0-9]-"$group.sh"; do
-    if [[ -f "$f" ]]; then
-      script="$f"
-      break
+  # 遍历 catalog 中所有 App
+  local app_name
+  for app_name in "${CATALOG_APPS[@]}"; do
+    if ! app_is_supported "$app_name"; then
+      unsupported+=("$app_name")
+      continue
+    fi
+
+    # 检查是否在清单中启用
+    local enabled=0
+    local a
+    for a in "${MANIFEST_APPS[@]}"; do
+      if [[ "$a" == "$app_name" ]]; then
+        enabled=1
+        break
+      fi
+    done
+
+    if [[ "$enabled" -eq 1 ]]; then
+      if app_is_installed "$app_name"; then
+        installed+=("$app_name")
+      else
+        missing+=("$app_name")
+      fi
+    else
+      disabled+=("$app_name")
     fi
   done
-  
-  # 如果没有找到，尝试不带数字前缀的
-  if [[ -z "$script" ]]; then
-    if [[ -f "$DOTFILES/modules/$group.sh" ]]; then
-      script="$DOTFILES/modules/$group.sh"
+
+  # 输出结果
+  log ""
+  if [[ ${#installed[@]} -gt 0 ]]; then
+    log_success "✅ Already installed (${#installed[@]}):"
+    for app in "${installed[@]}"; do
+      printf "   %-16s %s\n" "$app" "$(_app_desc "$app")"
+    done
+  fi
+
+  log ""
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    printf "${C_RED}❌ Not installed (%s) — enabled in manifests/%s.toml${C_RESET}\n" "${#missing[@]}" "$DETECTED_OS"
+    for app in "${missing[@]}"; do
+      printf "   %-16s %s\n" "$app" "$(_app_desc "$app")"
+    done
+  fi
+
+  log ""
+  if [[ ${#disabled[@]} -gt 0 ]]; then
+    printf "${C_DIM}⏸️  Disabled in manifest (%s)${C_RESET}\n" "${#disabled[@]}"
+    for app in "${disabled[@]}"; do
+      printf "   %-16s %s\n" "$app" "$(_app_desc "$app")"
+    done
+  fi
+
+  if [[ ${#unsupported[@]} -gt 0 ]]; then
+    log ""
+    printf "${C_DIM}⛔ Not supported on %s (%s)${C_RESET}\n" "$DETECTED_OS" "${#unsupported[@]}"
+    for app in "${unsupported[@]}"; do
+      printf "   %-16s %s\n" "$app" "$(_app_desc "$app")"
+    done
+  fi
+
+  log ""
+  log_info "💡 Tip: Edit manifests/${DETECTED_OS}.toml to enable/disable apps"
+}
+
+# =============================================================================
+# --list-apps 模式
+# =============================================================================
+list_apps() {
+  log ""
+  log "========================================"
+  log "Available apps"
+  log "========================================"
+
+  # 按 group 分组输出（使用命名空间变量模拟关联数组）
+  local app_name
+  for app_name in "${CATALOG_APPS[@]}"; do
+    local g
+    g="$(_app_group "$app_name")"
+    local safe_g
+    safe_g="$(_safe_var_name "$g")"
+    eval "GROUP_APPS_${safe_g}=\"\${GROUP_APPS_${safe_g}:-}\$app_name \""
+  done
+
+  local group_order=("core" "editor" "search" "language" "devtool" "proxy" "other")
+  local group
+  for group in "${group_order[@]}"; do
+    local safe_g
+    safe_g="$(_safe_var_name "$group")"
+    local apps
+    eval "apps=\"\${GROUP_APPS_${safe_g}:-}\""
+    [[ -z "$apps" ]] && continue
+
+    log ""
+    printf "${C_BOLD}[%s]${C_RESET}\n" "$group"
+    local app
+    for app in $apps; do
+      local supported="${C_GREEN}●${C_RESET}"
+      if ! app_is_supported "$app"; then
+        supported="${C_DIM}○${C_RESET}"
+      fi
+      printf "  %s %-16s %s\n" "$supported" "$app" "$(_app_desc "$app")"
+    done
+  done
+
+  log ""
+  log_info "Legend: ${C_GREEN}●${C_RESET} supported on $DETECTED_OS   ${C_DIM}○${C_RESET} not supported"
+}
+
+# =============================================================================
+# CLI 参数解析
+# =============================================================================
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [OPTIONS]
+
+Options:
+  -n, --dry-run         Preview changes without applying
+  -c, --check           Check installed/missing/disabled apps
+  -l, --list-apps       List all available apps
+  -a, --app NAME        Apply a single app
+  -h, --help            Show this help
+
+Examples:
+  ./init.sh                    # Install apps from manifest
+  ./init.sh --dry-run          # Preview only
+  ./init.sh --check            # See what's installed vs missing
+  ./init.sh --list-apps        # Browse all available apps
+  ./init.sh --app git          # Install single app
+EOF
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -n | --dry-run)
+        DRY_RUN=1
+        shift
+        ;;
+      -c | --check)
+        MODE="check"
+        shift
+        ;;
+      -l | --list-apps)
+        MODE="list-apps"
+        shift
+        ;;
+      -a | --app)
+        if [[ $# -lt 2 ]]; then
+          die "Option $1 requires an argument (e.g., --app git)"
+        fi
+        TARGET_APP="$2"
+        shift 2
+        ;;
+      -h | --help)
+        usage
+        exit 0
+        ;;
+      *)
+        die "Unknown option: $1"
+        ;;
+    esac
+  done
+}
+
+# =============================================================================
+# 主流程
+# =============================================================================
+main() {
+  parse_args "$@"
+
+  detect_os
+  load_catalog
+
+  if [[ -n "$TARGET_APP" ]]; then
+    # 单 App 模式
+    if ! app_is_supported "$TARGET_APP"; then
+      die "App '$TARGET_APP' is not supported on $DETECTED_OS"
     fi
-  fi
-  
-  if [[ ! -f "$script" ]]; then
-    log "⚠️  Warning: No module script found for group: $group"
-    continue
-  fi
-  
-  if [[ "$DRY_RUN" -eq 1 ]]; then
-    log "▶ group: $group ($script)"
-  else
-    log "▶ group: $group"
+    run_app "$TARGET_APP"
+    exit 0
   fi
 
-  # 运行模块
-  (
-    set -euo pipefail
-    source "$script"
-    module_main 1
-  )
-done
+  case "$MODE" in
+    check)
+      load_manifest
+      check_apps
+      ;;
+    list-apps)
+      list_apps
+      ;;
+    install)
+      load_manifest
+      apply_manifest
+      ;;
+  esac
+}
 
-log ""
-log "✅ Dotfiles installation complete (preset: $PRESET)"
+main "$@"

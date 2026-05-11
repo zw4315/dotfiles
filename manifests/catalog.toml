@@ -1,0 +1,96 @@
+# =============================================================================
+# Dotfiles App Catalog
+# =============================================================================
+# 本文件定义了仓库中所有可用的 App 及其元数据。
+# 不要直接修改本文件来开关 App —— 请编辑 manifests/darwin.toml 或 linux.toml。
+# =============================================================================
+
+[bash]
+desc = "Shell 配置（bash + zsh on macOS）"
+platforms = ["darwin", "linux"]
+group = "core"
+
+[git]
+desc = "Git 版本控制"
+platforms = ["darwin", "linux"]
+group = "core"
+
+[zoxide]
+desc = "智能目录跳转工具"
+platforms = ["darwin", "linux"]
+group = "core"
+
+[nvim]
+desc = "Neovim 编辑器"
+platforms = ["darwin", "linux"]
+group = "editor"
+
+[vim]
+desc = "传统 Vim 编辑器配置"
+platforms = ["darwin", "linux"]
+group = "editor"
+
+[tmux]
+desc = "终端复用器"
+platforms = ["darwin", "linux"]
+group = "editor"
+
+[ssh]
+desc = "SSH 客户端配置"
+platforms = ["darwin", "linux"]
+group = "core"
+
+[fd]
+desc = "替代 find 的文件查找工具"
+platforms = ["darwin", "linux"]
+group = "search"
+
+[rg]
+desc = "ripgrep — 递归文本搜索"
+platforms = ["darwin", "linux"]
+group = "search"
+
+[fzf]
+desc = "命令行模糊查找器"
+platforms = ["darwin", "linux"]
+group = "search"
+
+[go]
+desc = "Go 编程语言"
+platforms = ["darwin", "linux"]
+group = "language"
+
+[node]
+desc = "Node.js（通过 nvm 管理版本）"
+platforms = ["darwin", "linux"]
+group = "language"
+
+[python]
+desc = "Python（通过 uv 管理版本，默认 3.13）"
+platforms = ["darwin", "linux"]
+group = "language"
+
+[rust]
+desc = "Rust（通过 rustup 安装）"
+platforms = ["darwin", "linux"]
+group = "language"
+
+[ctags]
+desc = "Universal Ctags 代码标签"
+platforms = ["darwin", "linux"]
+group = "devtool"
+
+[global]
+desc = "GNU Global (gtags) 代码导航"
+platforms = ["darwin", "linux"]
+group = "devtool"
+
+[clang-format]
+desc = "代码格式化工具"
+platforms = ["darwin", "linux"]
+group = "devtool"
+
+[mihomo]
+desc = "Mihomo (Clash.Meta) 代理工具"
+platforms = ["linux"]
+group = "proxy"
