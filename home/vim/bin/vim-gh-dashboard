@@ -1,0 +1,397 @@
+#!/usr/bin/env python3
+"""Generate GitHub dashboard for Vim startify.
+
+Shows:
+- GitHub contribution heatmap (based on actual commits across all repos)
+- Top 10 active repositories
+- Recently updated repositories
+
+Requires: gh CLI authenticated with GitHub
+"""
+import json
+import subprocess
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta
+from pathlib import Path
+
+
+# ---------------------------------------------------------------------------
+# Cache helpers
+# ---------------------------------------------------------------------------
+def get_daily_cache_path():
+    cache_dir = Path.home() / ".cache"
+    cache_dir.mkdir(exist_ok=True, parents=True)
+    return cache_dir / "vim-gh-dashboard-daily.json"
+
+
+def load_daily_cache():
+    cache_file = get_daily_cache_path()
+    if cache_file.exists():
+        try:
+            with open(cache_file) as f:
+                return json.load(f)
+        except Exception:
+            return None
+    return None
+
+
+def save_daily_cache(data):
+    cache_file = get_daily_cache_path()
+    try:
+        with open(cache_file, 'w') as f:
+            json.dump({
+                'last_updated': datetime.now().isoformat(),
+                'data': data
+            }, f)
+    except Exception:
+        pass
+
+
+def is_daily_cache_fresh(cache, max_age_hours=1):
+    if not cache or 'last_updated' not in cache:
+        return False
+    try:
+        last_updated = datetime.fromisoformat(cache['last_updated'])
+        age_hours = (datetime.now() - last_updated).total_seconds() / 3600
+        return age_hours < max_age_hours
+    except Exception:
+        return False
+
+
+# ---------------------------------------------------------------------------
+# Git identity (source of truth for author matching)
+# ---------------------------------------------------------------------------
+def get_git_identity():
+    """Return (name, email) from git config."""
+    name = "Edward"
+    email = ""
+    try:
+        result = subprocess.run(
+            ["git", "config", "user.name"],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            name = result.stdout.strip() or name
+    except Exception:
+        pass
+    try:
+        result = subprocess.run(
+            ["git", "config", "user.email"],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            email = result.stdout.strip()
+    except Exception:
+        pass
+    return name, email
+
+
+# ---------------------------------------------------------------------------
+# Repo listing
+# ---------------------------------------------------------------------------
+def get_all_repos():
+    result = subprocess.run([
+        "gh", "repo", "list", "zw4315", "--limit", "100",
+        "--json", "name,defaultBranchRef"
+    ], capture_output=True, text=True)
+    if result.returncode != 0:
+        return []
+    try:
+        return json.loads(result.stdout)
+    except Exception:
+        return []
+
+
+# ---------------------------------------------------------------------------
+# Commit fetching (per repo) -> returns (dates, count)
+# ---------------------------------------------------------------------------
+def get_repo_commit_info(repo_name, since, until, git_name, git_email):
+    cmd = [
+        "gh", "api",
+        f"repos/zw4315/{repo_name}/commits?since={since}&until={until}&per_page=100",
+        "--paginate",
+        "--jq",
+        '.[] | {login: (.author.login // ""), name: .commit.author.name, email: .commit.author.email, date: .commit.author.date[:10]}',
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        return [], 0
+
+    dates = []
+    git_name_lower = git_name.lower()
+    for line in result.stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        login = obj.get("login") or ""
+        name = obj.get("name") or ""
+        email = obj.get("email") or ""
+        name_lower = name.lower()
+
+        # Multi-dimensional match: GitHub login, git email, git name, or known patterns
+        if (
+            login == "zw4315"
+            or email == git_email
+            or name_lower == git_name_lower
+            or "edward" in name_lower
+            or name == "zw4315"
+        ):
+            date_str = obj.get("date")
+            if date_str:
+                dates.append(date_str)
+    return dates, len(dates)
+
+
+# ---------------------------------------------------------------------------
+# Aggregate commits across all repos
+# ---------------------------------------------------------------------------
+def get_all_commit_info():
+    cache = load_daily_cache()
+    if cache and is_daily_cache_fresh(cache, max_age_hours=1):
+        return cache['data']['daily'], cache['data']['repos']
+
+    now = datetime.now()
+    since = (now - timedelta(days=365)).strftime("%Y-%m-%dT00:00:00Z")
+    until = now.strftime("%Y-%m-%dT23:59:59Z")
+    git_name, git_email = get_git_identity()
+    repos = get_all_repos()
+
+    daily_counts = {}
+    repo_stats = []
+
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {
+            executor.submit(get_repo_commit_info, r['name'], since, until, git_name, git_email): r['name']
+            for r in repos
+        }
+        for future in futures:
+            repo_name = futures[future]
+            dates, count = future.result()
+            if count > 0:
+                repo_stats.append((repo_name, count))
+                for date_str in dates:
+                    daily_counts[date_str] = daily_counts.get(date_str, 0) + 1
+
+    repo_stats.sort(key=lambda x: x[1], reverse=True)
+    save_daily_cache({'daily': daily_counts, 'repos': repo_stats})
+    return daily_counts, repo_stats
+
+
+# ---------------------------------------------------------------------------
+# Build calendar structure from real daily commit counts
+# ---------------------------------------------------------------------------
+def build_calendar_from_daily(daily_counts, weeks=20):
+    today = datetime.now().date()
+    # Find the Sunday of the current week (week starts on Sunday)
+    end_week_start = today - timedelta(days=(today.weekday() + 1) % 7)
+    start_week_start = end_week_start - timedelta(weeks=weeks - 1)
+
+    weeks_list = []
+    current = start_week_start
+    while current <= end_week_start:
+        days = []
+        for i in range(7):
+            day = current + timedelta(days=i)
+            date_str = day.strftime("%Y-%m-%d")
+            count = daily_counts.get(date_str, 0)
+            days.append({"date": date_str, "contributionCount": count})
+        weeks_list.append({"contributionDays": days})
+        current += timedelta(weeks=1)
+
+    total = sum(daily_counts.values())
+    return {
+        "data": {
+            "viewer": {
+                "contributionsCollection": {
+                    "contributionCalendar": {
+                        "totalContributions": total,
+                        "weeks": weeks_list
+                    }
+                }
+            }
+        }
+    }
+
+
+# ---------------------------------------------------------------------------
+# Heatmap renderer
+# ---------------------------------------------------------------------------
+def generate_heatmap(data, weeks=None):
+    calendar = data["data"]["viewer"]["contributionsCollection"]["contributionCalendar"]
+    all_weeks = calendar["weeks"]
+    recent_weeks = all_weeks[-weeks:] if weeks and len(all_weeks) > weeks else all_weeks
+
+    levels = ["  ", "░░", "▒▒", "▓▓", "██"]
+    day_labels = ["S", "M", "T", "W", "T", "F", "S"]
+    lines = []
+
+    non_zero_counts = []
+    for week in recent_weeks:
+        for day in week.get("contributionDays", []):
+            count = day.get("contributionCount", 0)
+            if count > 0:
+                non_zero_counts.append(count)
+
+    non_zero_counts.sort()
+
+    def percentile(sorted_values, p):
+        if not sorted_values:
+            return 0
+        idx = int((len(sorted_values) - 1) * p)
+        return sorted_values[idx]
+
+    q1 = percentile(non_zero_counts, 0.25)
+    q2 = percentile(non_zero_counts, 0.50)
+    q3 = percentile(non_zero_counts, 0.75)
+
+    # Determine month boundaries: mark any week that contains day 1
+    month_starts = []
+    last_month_num = None
+    for i, week in enumerate(recent_weeks):
+        days = week.get("contributionDays", [])
+        if not days:
+            continue
+        week_dates = [datetime.strptime(day["date"], "%Y-%m-%d") for day in days]
+
+        mark_dt = None
+        for dt in week_dates:
+            if dt.day == 1:
+                mark_dt = dt
+                break
+        # Fallback for the very first week if it doesn't contain day 1
+        if mark_dt is None and i == 0:
+            mark_dt = week_dates[0]
+
+        if mark_dt is not None and mark_dt.month != last_month_num:
+            month_starts.append((i, mark_dt.strftime("%b")))
+            last_month_num = mark_dt.month
+
+    # Month labels
+    col_width = 3
+    month_chars = [" "] * (len(recent_weeks) * col_width)
+    for week_idx, month in month_starts:
+        pos = week_idx * col_width + 1
+        for offset, ch in enumerate(month[:3]):
+            if pos + offset < len(month_chars):
+                month_chars[pos + offset] = ch
+    lines.append(("   " + "".join(month_chars)).rstrip())
+
+    # Day rows
+    month_start_set = {start for start, _ in month_starts[1:]}
+    for day_idx in range(7):
+        row = " " + day_labels[day_idx] + " "
+        for week_idx, week in enumerate(recent_weeks):
+            days = week["contributionDays"]
+            separator = "│" if week_idx in month_start_set else " "
+            if day_idx < len(days):
+                count = days[day_idx]["contributionCount"]
+                if count == 0:
+                    cell = levels[0]
+                elif count <= q1:
+                    cell = levels[1]
+                elif count <= q2:
+                    cell = levels[2]
+                elif count <= q3:
+                    cell = levels[3]
+                else:
+                    cell = levels[4]
+            else:
+                cell = levels[0]
+            row += separator + cell
+        lines.append(row.rstrip())
+
+    total = calendar.get("totalContributions", 0)
+    lines.append("")
+    lines.append("   Legend: ░ low  ▒ mid  ▓ high  █ peak")
+    lines.append(f"   {total} commits in the last year")
+    return [line.rstrip() for line in lines]
+
+
+# ---------------------------------------------------------------------------
+# Recently updated repos (for the lower section)
+# ---------------------------------------------------------------------------
+def run_gh_repos(limit=8):
+    try:
+        result = subprocess.run(
+            [
+                "gh",
+                "repo",
+                "list",
+                "--limit",
+                str(limit),
+                "--json",
+                "name,pushedAt,visibility",
+                "--jq",
+                ".[] | [.pushedAt, .name, .visibility] | @tsv",
+            ],
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        return []
+    if result.returncode != 0:
+        return []
+    repos = []
+    for line in result.stdout.strip().split("\n"):
+        if not line:
+            continue
+        parts = line.split("\t")
+        if len(parts) >= 2:
+            pushed_at = parts[0]
+            name = parts[1]
+            visibility = parts[2] if len(parts) > 2 else "public"
+            try:
+                dt = datetime.fromisoformat(pushed_at.replace("Z", "+00:00"))
+                date_str = dt.strftime("%m-%d")
+            except Exception:
+                date_str = pushed_at[:10]
+            repos.append((date_str, name, visibility))
+    return repos
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+def main():
+    output = []
+
+    try:
+        daily_counts, repo_stats = get_all_commit_info()
+        total = sum(daily_counts.values())
+
+        data = build_calendar_from_daily(daily_counts)
+        output.append("  GitHub Contribution Heatmap")
+        output.append("  (based on actual commits across all repos)")
+        output.append("")
+        output.extend(generate_heatmap(data))
+        output.append("")
+
+        if repo_stats:
+            output.append("   Top 10 Active Repositories")
+            output.append("")
+            for repo_name, count in repo_stats[:10]:
+                output.append(f"   {repo_name}: {count} commits")
+            output.append("")
+    except Exception as e:
+        output.append("  Unable to fetch GitHub data")
+        output.append(f"  Reason: {e}")
+
+    repos = run_gh_repos()
+    if repos:
+        output.append("---REPOS---")
+        output.append("  Recently Updated Repositories")
+        output.append("")
+        for date_str, name, visibility in repos:
+            icon = "●" if visibility == "public" else "○"
+            output.append(f"   {date_str} {icon} {name}")
+
+    for line in output:
+        print(line)
+
+
+if __name__ == "__main__":
+    main()

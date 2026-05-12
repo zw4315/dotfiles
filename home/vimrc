@@ -108,6 +108,9 @@ Plug 'tpope/vim-commentary'
 
 " Bookmark
 Plug 'MattesGroeger/vim-bookmarks'
+
+" Startify dashboard with GitHub heatmap
+Plug 'mhinz/vim-startify'
 call plug#end()
 
 
@@ -167,4 +170,35 @@ nnoremap <leader>o :History<CR>
 " ------------------------------
 " 或者，保存时自动执行：
 autocmd BufWritePre *.cpp,*.h,*.cc :%!clang-format
+
+" ------------------------------
+" Startify Dashboard + GitHub Heatmap
+" ------------------------------
+let s:gh_dashboard_script = expand('~/.vim/bin/vim-gh-dashboard')
+if executable(s:gh_dashboard_script)
+  let s:output = systemlist(s:gh_dashboard_script)
+  let s:idx = index(s:output, '---REPOS---')
+  if s:idx > 0
+    let s:heatmap = s:output[:s:idx - 1]
+    let s:repos = s:output[s:idx + 1:]
+    let g:startify_custom_header = s:heatmap + [''] + s:repos
+  else
+    let g:startify_custom_header = startify#center(s:output)
+  endif
+else
+  let g:startify_custom_header = startify#center(['GitHub dashboard not available'])
+endif
+
+let g:startify_lists = [
+    \ { 'type': 'files',     'header': ['   Recent Files'] },
+    \ { 'type': 'sessions',  'header': ['   Sessions'] },
+    \ { 'type': 'bookmarks', 'header': ['   Bookmarks'] },
+    \ ]
+
+let g:startify_session_dir = '~/.vim/session'
+let g:startify_session_persistence = 1
+let g:startify_session_delete_buffers = 1
+
+" 高亮 startify header（heatmap 区域）
+highlight StartifyHeader ctermfg=114 guifg=#98c379
 
