@@ -34,12 +34,14 @@ app_configure() {
   fi
 
   # 链接 scripts/ 目录下的可执行脚本到 PATH
+  # 注意：tmux_layout 由 apps/tmux/app.sh 在安装 tmux 时单独处理
   ensure_dir "$HOME/.local/bin"
   local script
   for script in "$DOTFILES/scripts/"*; do
     [[ -f "$script" && -x "$script" ]] || continue
     local name
     name="$(basename "$script")"
+    [[ "$name" == "tmux_layout" ]] && continue
     link_file "$script" "$HOME/.local/bin/$name"
   done
 
