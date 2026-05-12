@@ -11,7 +11,7 @@
 bash   = true   # Shell 配置（含 zshrc，macOS 默认 shell）
 git    = true   # Git 版本控制
 ssh    = true   # SSH 客户端配置
-zoxide = true   # 智能目录跳转
+# zoxide 作为可选工具，不在 core 中默认安装
 
 [editor]
 nvim = flase   # Neovim 编辑器

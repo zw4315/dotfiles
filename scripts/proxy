@@ -6,19 +6,23 @@ die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 usage() {
   cat <<'EOF'
 Usage:
-  proxy list
-  proxy status
-  proxy env <off|jump|clash>
-  proxy toggle-env
+  proxy env <jump|clash|off>      Print shell export/unset code
+  proxy tunnel <jump|off>         Manage SSH tunnel
+  proxy status                    Show current proxy status
+  proxy list                      List available proxy profiles
+  proxy toggle-env                Toggle between off/jump/clash
 
-Notes:
-  - `proxy env ...` prints shell code. Use it like:
-      eval "$(proxy env clash)"
-      eval "$(proxy toggle-env)"
+Examples:
+  eval "$(proxy env jump)"        # Enable jump proxy in current shell
+  eval "$(proxy env off)"         # Disable proxy in current shell
+  proxy tunnel jump               # Start SSH tunnel
+  proxy tunnel off                # Stop SSH tunnel
 EOF
 }
 
 is_wsl() { grep -qi microsoft /proc/version 2>/dev/null; }
+
+is_macos() { [[ "$(uname)" == "Darwin" ]]; }
 
 wsl_host_ip() {
   local ip=""
@@ -47,16 +51,6 @@ proxy_url_clash() {
   printf 'http://%s:%s' "$host" "$port"
 }
 
-proxy_url_for() {
-  local name="${1:-off}"
-  case "$name" in
-    off|"") return 1 ;;
-    jump) proxy_url_jump ;;
-    clash) proxy_url_clash ;;
-    *) die "Unknown proxy profile: $name" ;;
-  esac
-}
-
 cmd_list() {
   printf 'Available proxy profiles:\n'
   printf '  %-6s %s\n' jump "$(proxy_url_jump)"
@@ -73,17 +67,30 @@ cmd_status() {
 }
 
 cmd_env() {
-  local name="${1:-off}"
+  local name="${1:-}"
   if [[ -z "$name" || "$name" == "off" ]]; then
     cat <<'EOF'
 unset http_proxy https_proxy all_proxy no_proxy
 export PROXY_MODE="off"
 EOF
+    if is_macos; then
+      local svc
+      while IFS= read -r svc; do
+        [[ "$svc" == \** ]] && continue
+        printf 'networksetup -setwebproxystate %q off 2>/dev/null || true\n' "$svc"
+        printf 'networksetup -setsecurewebproxystate %q off 2>/dev/null || true\n' "$svc"
+      done < <(networksetup -listallnetworkservices 2>/dev/null | tail -n +2)
+    fi
     return 0
   fi
 
   local url
-  url="$(proxy_url_for "$name")"
+  case "$name" in
+    jump) url="$(proxy_url_jump)" ;;
+    clash) url="$(proxy_url_clash)" ;;
+    *) usage >&2; die "Unknown env profile: '$name'. Use: jump, clash, off" ;;
+  esac
+
   printf 'export http_proxy=%q\n' "$url"
   printf 'export https_proxy=%q\n' "$url"
   printf 'export all_proxy=%q\n' "$url"
@@ -91,22 +98,11 @@ EOF
   printf 'export PROXY_MODE=%q\n' "$name"
 }
 
-cmd_tunnel() {
-  local name="${1:-}"
-  case "$name" in
-    jump) _tunnel_jump ;;
-    off)  _tunnel_off ;;
-    *) die "Unknown tunnel command: $name" ;;
-  esac
-}
-
 _tunnel_jump() {
-  # 检查本地端口是否已有服务
   if nc -z -w 1 127.0.0.1 8888 2>/dev/null; then
     return 0
   fi
 
-  # 检查是否已有 ssh 进程在做这个转发
   if pgrep -f "ssh.*-L.*8888:127.0.0.1:8888.*jump" >/dev/null 2>&1; then
     local n=0
     while ! nc -z -w 1 127.0.0.1 8888 2>/dev/null && [[ $n -lt 10 ]]; do
@@ -116,7 +112,6 @@ _tunnel_jump() {
     return 0
   fi
 
-  # 后台启动 SSH 隧道
   ssh -f -N jump
 }
 
@@ -129,6 +124,15 @@ _tunnel_off() {
   else
     echo "[*] No SSH tunnel running"
   fi
+}
+
+cmd_tunnel() {
+  local name="${1:-}"
+  case "$name" in
+    jump) _tunnel_jump ;;
+    off)  _tunnel_off ;;
+    *) usage >&2; die "Unknown tunnel action: '$name'. Use: jump, off" ;;
+  esac
 }
 
 cmd_toggle_env() {
@@ -145,14 +149,13 @@ main() {
   local cmd="${1:-}"
   case "$cmd" in
     -h|--help|"") usage; exit 0 ;;
-    list) shift; cmd_list "$@" ;;
-    status) shift; cmd_status "$@" ;;
+    list) shift; cmd_list ;;
+    status) shift; cmd_status ;;
     env) shift; cmd_env "${1:-}" ;;
     tunnel) shift; cmd_tunnel "${1:-}" ;;
     toggle-env) shift; cmd_toggle_env ;;
-    *) usage >&2; die "Unknown command: $cmd" ;;
+    *) usage >&2; die "Unknown command: '$cmd'" ;;
   esac
 }
 
 main "$@"
-

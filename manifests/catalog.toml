@@ -18,7 +18,7 @@ group = "core"
 [zoxide]
 desc = "智能目录跳转工具"
 platforms = ["darwin", "linux"]
-group = "core"
+group = "tool"
 
 [nvim]
 desc = "Neovim 编辑器"

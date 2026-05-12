@@ -164,6 +164,38 @@ _app_group() {
   eval "printf '%s' \"\${APP_GROUP_${var_name}:-other}\""
 }
 
+# 检查 App 名称是否存在于 catalog
+_app_exists() {
+  local name="$1"
+  for app in "${CATALOG_APPS[@]}"; do
+    [[ "$app" == "$name" ]] && return 0
+  done
+  return 1
+}
+
+# 检查分组名称是否存在于 catalog
+_group_exists() {
+  local name="$1"
+  for app in "${CATALOG_APPS[@]}"; do
+    local g
+    g="$(_app_group "$app")"
+    [[ "$g" == "$name" ]] && return 0
+  done
+  return 1
+}
+
+# 获取某分组下所有在当前平台支持的 App
+_apps_in_group() {
+  local group="$1"
+  for app in "${CATALOG_APPS[@]}"; do
+    local g
+    g="$(_app_group "$app")"
+    if [[ "$g" == "$group" ]] && app_is_supported "$app"; then
+      printf '%s\n' "$app"
+    fi
+  done
+}
+
 # 检查 App 是否在当前平台支持
 app_is_supported() {
   local app_name="$1"
@@ -501,7 +533,7 @@ Options:
   -n, --dry-run         Preview changes without applying
   -c, --check           Check installed/missing/disabled apps
   -l, --list-apps       List all available apps
-  -a, --app NAME        Apply a single app
+  -a, --app NAME        Apply a single app or a group
   -h, --help            Show this help
 
 Examples:
@@ -510,6 +542,8 @@ Examples:
   ./init.sh --check            # See what's installed vs missing
   ./init.sh --list-apps        # Browse all available apps
   ./init.sh --app git          # Install single app
+  ./init.sh --app core         # Install all apps in 'core' group
+  ./init.sh --app proxy        # Install all apps in 'proxy' group
 EOF
 }
 
@@ -557,11 +591,34 @@ main() {
 
   if [[ -n "$TARGET_APP" ]]; then
     # 单 App 模式
-    if ! app_is_supported "$TARGET_APP"; then
-      die "App '$TARGET_APP' is not supported on $DETECTED_OS"
+    if _app_exists "$TARGET_APP"; then
+      if ! app_is_supported "$TARGET_APP"; then
+        die "App '$TARGET_APP' is not supported on $DETECTED_OS"
+      fi
+      run_app "$TARGET_APP"
+      exit 0
     fi
-    run_app "$TARGET_APP"
-    exit 0
+
+    # 分组模式
+    if _group_exists "$TARGET_APP"; then
+      log ""
+      log "========================================"
+      log "Installing group: $TARGET_APP"
+      log "========================================"
+      local group_apps=()
+      while IFS= read -r app; do
+        [[ -n "$app" ]] && group_apps+=("$app")
+      done < <(_apps_in_group "$TARGET_APP")
+      if [[ ${#group_apps[@]} -eq 0 ]]; then
+        die "Group '$TARGET_APP' has no supported apps on $DETECTED_OS"
+      fi
+      for app in "${group_apps[@]}"; do
+        run_app "$app"
+      done
+      exit 0
+    fi
+
+    die "Unknown app or group: '$TARGET_APP'"
   fi
 
   case "$MODE" in

@@ -48,22 +48,5 @@ app_configure() {
 }
 
 app_post_install() {
-  # 保护关键源文件：外部工具（如 zoxide）可能会向 ~/.bashrc / ~/.zshrc 追加内容，
-  # 而这些是 symlink，实际会修改仓库源文件。设为只读可防止意外污染。
-  local -a protected_files=(
-    "$APP_DIR/config/bashrc"
-    "$APP_DIR/config/bash_aliases"
-    "$APP_DIR/config/proxyrc"
-    "$APP_DIR/config/profile"
-    "$DOTFILES/home/zshrc"
-    "$DOTFILES/home/zprofile"
-  )
-  for f in "${protected_files[@]}"; do
-    if [[ -f "$f" && -w "$f" ]]; then
-      chmod -w "$f"
-      log_info "  Protected (read-only): ${f#$DOTFILES/}"
-    fi
-  done
-
   log_info "  Bash configured. Restart your shell or run: source ~/.bashrc"
 }

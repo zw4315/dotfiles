@@ -19,16 +19,11 @@ mihd() {
   work_dir="${HOME}/.local/share/mihomo"
   pid_file="${work_dir}/mihomo.pid"
   log_file="${work_dir}/mihomo.log"
-  
-  # 确保工作目录存在
-  mkdir -p "$work_dir"
-
-  # 日志大小限制 (10MB)
-  local max_log_size=$((10 * 1024 * 1024))
-  local max_log_lines=1000
 
   # 日志轮转函数
   _mihd_rotate_log() {
+    local max_log_size=$((10 * 1024 * 1024))
+    local max_log_lines=1000
     if [[ -f "$log_file" ]]; then
       local file_size
       file_size=$(stat -f%z "$log_file" 2>/dev/null || stat -c%s "$log_file" 2>/dev/null || echo 0)
@@ -66,6 +61,7 @@ mihd() {
         echo "Consider downloading it manually or starting mihomo once without '-d' to let it download."
       fi
 
+      mkdir -p "$work_dir"
       _mihd_rotate_log
       echo "Starting mihomo daemon..."
       nohup mihomo -f "$config_file" -d "$work_dir" >"$log_file" 2>&1 &
@@ -91,69 +87,6 @@ mihd() {
         echo "mihomo is not running"
       fi
       ;;
-    jump)
-      # 启动 SSH 隧道（如果还没建立）
-      if ! nc -z -w 1 127.0.0.1 8888 2>/dev/null; then
-        if ! pgrep -f "ssh.*-L.*8888:127.0.0.1:8888.*jump" >/dev/null 2>&1; then
-          echo "[*] Starting SSH tunnel to jump host..."
-          ssh -f -N jump
-        fi
-        local n=0
-        while ! nc -z -w 1 127.0.0.1 8888 2>/dev/null && [[ $n -lt 10 ]]; do
-          sleep 0.5
-          ((n++))
-        done
-      fi
-
-      # 设置代理环境变量
-      export http_proxy=http://127.0.0.1:8888
-      export https_proxy=http://127.0.0.1:8888
-      export all_proxy=http://127.0.0.1:8888
-      export no_proxy=localhost,127.0.0.1,::1
-      export PROXY_MODE=jump
-
-      # 设置 git 代理
-      git config --global http.proxy http://127.0.0.1:8888
-      git config --global https.proxy http://127.0.0.1:8888
-
-      echo "PROXY_MODE=jump"
-      echo "http_proxy=http://127.0.0.1:8888"
-      echo "Tunnel: ssh -L 8888:127.0.0.1:8888 jump"
-      ;;
-    kill)
-      # 停止 mihomo
-      if [[ -f "$pid_file" ]]; then
-        local pid
-        pid=$(cat "$pid_file")
-        if kill -0 "$pid" 2>/dev/null; then
-          kill "$pid" 2>/dev/null && echo "mihomo stopped (PID: $pid)"
-        fi
-        rm -f "$pid_file"
-      fi
-      local pids
-      pids=$(pgrep -x mihomo 2>/dev/null || true)
-      if [[ -n "$pids" ]]; then
-        echo "$pids" | xargs kill -9 2>/dev/null && echo "mihomo force stopped"
-      fi
-
-      # 停止 jump 隧道
-      local tunnel_pids
-      tunnel_pids=$(pgrep -f "ssh.*-L.*8888:127.0.0.1:8888.*jump" 2>/dev/null || true)
-      if [[ -n "$tunnel_pids" ]]; then
-        echo "$tunnel_pids" | xargs kill 2>/dev/null
-        echo "SSH tunnel stopped"
-      fi
-
-      # 清除代理环境变量
-      unset http_proxy https_proxy all_proxy no_proxy
-      export PROXY_MODE=off
-
-      # 清除 git 代理
-      git config --global --unset http.proxy 2>/dev/null || true
-      git config --global --unset https.proxy 2>/dev/null || true
-
-      echo "All proxies stopped"
-      ;;
     force|restart)
       # 强制重启：杀死所有进程 + 清理 pid 文件 + 重新启动
       echo "Force restarting mihomo..."
@@ -163,9 +96,11 @@ mihd() {
       rm -f "$pid_file"
       # 3. 等待进程退出
       sleep 1
-      # 4. 日志轮转
+      # 4. 确保工作目录存在
+      mkdir -p "$work_dir"
+      # 5. 日志轮转
       _mihd_rotate_log
-      # 5. 重新启动
+      # 6. 重新启动
       echo "Starting mihomo daemon..."
       nohup mihomo -f "$config_file" -d "$work_dir" >"$log_file" 2>&1 &
       echo $! > "$pid_file"
@@ -485,11 +420,9 @@ else:
       fi
       ;;
     *)
-      echo "Usage: mihd {start|stop|kill|jump|force|status|logs|config|nodes|now|use}"
+      echo "Usage: mihd {start|stop|force|status|logs|config|nodes|now|use}"
       echo "  start        - Start mihomo daemon (default)"
       echo "  stop         - Stop mihomo daemon"
-      echo "  kill         - Stop all proxies (mihomo + jump tunnel) and clear env"
-      echo "  jump         - Start SSH tunnel to jump host and set proxy env"
       echo "  force        - Force kill and restart (fix stuck issues)"
       echo "  status       - Check mihomo status"
       echo "  logs         - Tail mihomo logs"
@@ -497,6 +430,8 @@ else:
       echo "  nodes        - List all available nodes"
       echo "  now          - Show current node"
       echo "  use <n|0>    - Switch to node n, or 0/auto for auto-select"
+      echo ""
+      echo "For proxy management, use: proxy tunnel <jump|off>  or  proxy env <jump|clash|off>"
       ;;
   esac
 }

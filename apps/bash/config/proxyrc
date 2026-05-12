@@ -2,25 +2,23 @@
 
 # This file is sourced by `~/.bashrc`. Keep it lightweight.
 # Complex logic lives in `proxy` (a script installed to your PATH).
+#
+# Two-layer design:
+#   proxy tunnel <jump|off>  -- Layer 1: manage SSH tunnel
+#   proxy env <jump|clash|off> -- Layer 2: print shell code (use with eval)
 
 command -v proxy >/dev/null 2>&1 || return 0
 
 export PROXY_MODE="${PROXY_MODE:-off}"
 
-proxy_use() {
+proxy_env() {
   local name="${1:-off}"
-
-  # jump 模式：先确保 SSH 隧道已建立
-  if [[ "$name" == "jump" ]]; then
-    command proxy tunnel jump >/dev/null 2>&1 || true
-  fi
-
   eval "$(command proxy env "$name")"
   command proxy status | sed -n '1p'
 }
 
-proxy_tunnel_off() {
-  command proxy tunnel off
+proxy_tunnel() {
+  command proxy tunnel "$1"
 }
 
 proxy_list() { command proxy list; }

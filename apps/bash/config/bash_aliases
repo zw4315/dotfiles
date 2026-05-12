@@ -37,26 +37,19 @@ alias l='ls -CF'
 alias rm='rm -i'
 
 
-# 代理相关
+# 代理相关（两层设计）
+# Layer 1: proxy tunnel <jump|off>   -- 管理 SSH 隧道
+# Layer 2: proxy env <jump|clash|off> -- 管理当前 shell 环境变量
 alias pls='proxy_list'
-alias puse='proxy_use'
+alias pstatus='proxy_status'
+alias penv='proxy_env'
+alias ptun='proxy_tunnel'
 
-alias pjump='proxy_use jump'
-
-# 清除旧 alias 避免函数定义冲突
-unalias pclash poff 2>/dev/null || true
-
-pclash() {
-  proxy_use clash
-  git config --global http.proxy http://127.0.0.1:7890
-  git config --global https.proxy http://127.0.0.1:7890
-}
-
-poff() {
-  proxy_use off
-  git config --global --unset http.proxy 2>/dev/null || true
-  git config --global --unset https.proxy 2>/dev/null || true
-}
+# 组合快捷方式
+alias pjump='proxy_tunnel jump >/dev/null 2>&1 || true; proxy_env jump'
+alias poff='proxy_tunnel off; proxy_env off'
+alias pclash='proxy_env clash'
+alias ptoggle='proxy_toggle'
 
 ########## 按功能分块 ##########
 # 工具类（确认命令存在再 alias，避免不同机器报错）
