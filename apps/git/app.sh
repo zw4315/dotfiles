@@ -17,6 +17,38 @@ APP_APT_PACKAGE="git"
 DELTA_BREW_FORMULA="git-delta"
 DELTA_APT_PACKAGE="git-delta"
 
+# 当 apt 中没有 git-delta 时（如 Ubuntu 20.04），从 GitHub releases 安装 .deb
+_install_delta_from_github() {
+  if ! has_cmd dpkg; then
+    return 1
+  fi
+
+  local arch
+  arch="$(dpkg --print-architecture)"
+
+  local latest_tag
+  latest_tag="$(curl -fsSL https://api.github.com/repos/dandavison/delta/releases/latest | jq -r '.tag_name')"
+  if [[ -z "$latest_tag" || "$latest_tag" == "null" ]]; then
+    return 1
+  fi
+
+  local deb_url="https://github.com/dandavison/delta/releases/download/${latest_tag}/git-delta-musl_${latest_tag#v}_${arch}.deb"
+  local tmp_deb="/tmp/git-delta_${latest_tag}.deb"
+
+  if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
+    log "  [dry-run] Would download and install delta from GitHub: $deb_url"
+    return 0
+  fi
+
+  log "  Downloading delta ${latest_tag} from GitHub..."
+  if curl -fsSL -o "$tmp_deb" "$deb_url"; then
+    sudo dpkg -i "$tmp_deb" && rm -f "$tmp_deb"
+  else
+    rm -f "$tmp_deb"
+    return 1
+  fi
+}
+
 # 默认安装：使用平台包管理器
 app_install() {
   # 尝试自动安装，如果失败则跳过（因为 git 通常已预装）
@@ -31,7 +63,13 @@ app_install() {
 
   if [[ -n "$delta_pkg" ]]; then
     log "  Installing optional: $delta_pkg"
-    pkg_install "$delta_pkg" || log_warn "  $delta_pkg not installed, will use default pager"
+    if ! pkg_install "$delta_pkg" 2>/dev/null; then
+      if [[ "${DETECTED_OS:-}" == "linux" ]]; then
+        _install_delta_from_github || log_warn "  delta not installed, will use default pager"
+      else
+        log_warn "  $delta_pkg not installed, will use default pager"
+      fi
+    fi
   fi
 }
 
