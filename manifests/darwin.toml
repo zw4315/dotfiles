@@ -31,6 +31,10 @@ node   = false   # Node.js via nvm
 python = false   # Python via uv
 rust   = false   # Rust via rustup
 
+# === 代理工具（按需开启）===
+[proxy]
+mihomo = true   # Mihomo (Clash.Meta) 代理
+
 # === 开发工具（按需开启）===
 [devtool]
 ctags        = true   # Universal Ctags 代码标签
