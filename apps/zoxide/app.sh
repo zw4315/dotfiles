@@ -13,7 +13,22 @@ APP_BREW_FORMULA="zoxide"
 APP_APT_PACKAGE="zoxide"
 
 app_install() {
-  pkg_install_auto "$APP_NAME"
+  if has_cmd zoxide; then
+    log_info "  Already installed: zoxide"
+    return 0
+  fi
+
+  # Linux apt 仓库通常没有 zoxide，改用官方安装脚本
+  if [[ "${DETECTED_OS:-}" == "linux" && "${PKG_MANAGER:-}" == "apt" ]]; then
+    if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
+      log "  [dry-run] Would install zoxide via official install script"
+      return 0
+    fi
+    log "  Installing zoxide via official install script"
+    curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash
+  else
+    pkg_install_auto "$APP_NAME"
+  fi
 }
 
 app_configure() {

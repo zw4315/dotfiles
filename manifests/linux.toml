@@ -33,9 +33,9 @@ rust   = false   # Rust via rustup
 
 # === 开发工具（按需开启）===
 [devtool]
-ctags        = false   # Universal Ctags 代码标签
-global       = false   # GNU Global 代码导航
-clang-format = false   # 代码格式化
+ctags        = true   # Universal Ctags 代码标签
+global       = true   # GNU Global 代码导航
+clang-format = true   # 代码格式化
 
 # === 代理工具 ===
 [proxy]
