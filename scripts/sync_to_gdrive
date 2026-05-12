@@ -2,13 +2,17 @@
 
 SRC="$HOME/gdshare"
 DEST="gdrive:gdshare"
-BACKUP="gdrive:gdshare_backup/$(date +%Y-%m-%d)"
 
-echo "📤 Syncing $SRC -> $DEST ..."
-rclone sync -L "$SRC" "$DEST" \
-  --backup-dir "$BACKUP" \
-  --suffix ".$(date +%Y-%m-%d_%H-%M-%S).bak" \
+echo "🔄 Bisyncing $SRC <-> $DEST ..."
+
+# For first run, use: ./sync_to_gdrive --resync
+rclone bisync "$SRC" "$DEST" \
   --exclude ".git/**" --exclude "*.tmp" \
-  -P --stats=10s --stats-one-line
-echo "✅ Sync done. Backup dir: $BACKUP"
+  --max-delete 50 \
+  --conflict-resolve newer \
+  --create-empty-src-dirs \
+  --resilient \
+  -P --stats=10s --stats-one-line \
+  "$@"
 
+echo "✅ Bisync done."
