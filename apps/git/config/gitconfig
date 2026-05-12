@@ -8,7 +8,6 @@
   whitespace = trailing-space,space-before-tab
   excludesfile = ~/.gitignore_global
 	editor = vim
-	pager = delta
 
 [init]
   defaultBranch = main
@@ -72,8 +71,8 @@
 
 [rerere]
   enabled = true
+[include]
+	path = ~/.gitconfig_local
+
 [credential]
 	helper = osxkeychain
-[delta]
-	side-by-side = true
-	line-numbers = true
