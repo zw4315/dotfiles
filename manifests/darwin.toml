@@ -16,7 +16,7 @@ zoxide = true   # 智能目录跳转
 [editor]
 nvim = flase   # Neovim 编辑器
 vim  = true   # 传统 Vim 编辑器
-tmux = false   # 终端复用器
+tmux = true   # 终端复用器
 
 [search]
 fd  = true   # 替代 find，更快更友好

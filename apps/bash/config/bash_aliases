@@ -42,8 +42,21 @@ alias pls='proxy_list'
 alias puse='proxy_use'
 
 alias pjump='proxy_use jump'
-alias pclash='proxy_use clash'
-alias poff='proxy_use off'
+
+# 清除旧 alias 避免函数定义冲突
+unalias pclash poff 2>/dev/null || true
+
+pclash() {
+  proxy_use clash
+  git config --global http.proxy http://127.0.0.1:7890
+  git config --global https.proxy http://127.0.0.1:7890
+}
+
+poff() {
+  proxy_use off
+  git config --global --unset http.proxy 2>/dev/null || true
+  git config --global --unset https.proxy 2>/dev/null || true
+}
 
 ########## 按功能分块 ##########
 # 工具类（确认命令存在再 alias，避免不同机器报错）
