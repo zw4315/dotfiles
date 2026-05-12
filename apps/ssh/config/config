@@ -22,3 +22,10 @@ Host hd
 Host centos
     HostName 43.129.192.176
     User edward
+
+Host jump
+    HostName 43.129.192.176
+    User edward
+    LocalForward 8888 127.0.0.1:8888
+    ServerAliveInterval 30
+    ServerAliveCountMax 3

@@ -7,7 +7,18 @@
 
 set -uo pipefail
 
+# ===== 安全提示 =====
+# 默认只监听 127.0.0.1（本地回环），不暴露在公网。
+# 通过 SSH 本地端口转发访问：
+#   ssh -N -L 8888:127.0.0.1:8888 user@你的服务器IP
+# 然后本地使用 http://127.0.0.1:8888 作为代理。
+#
+# 如需公网访问（不推荐），可改 BIND 为 0.0.0.0 并加认证：
+#   gost -L "http://username:password@:8888"
+# =====================
+
 PORT=8888
+BIND="127.0.0.1"                 # 安全默认值：只监听本地
 GOST_BIN="$HOME/app/gost"        # 改成你的实际路径
 PID_FILE="/tmp/gost_proxy.pid"
 LOG_FILE="$HOME/app/gost_proxy.log"
@@ -25,7 +36,7 @@ start() {
     trap 'exit 0' INT TERM
     while true; do
       echo "$(date '+%F %T') [gost] starting..." >>"$LOG_FILE" 2>&1
-      "$GOST_BIN" -L "http://:${PORT}" >>"$LOG_FILE" 2>&1
+      "$GOST_BIN" -L "http://${BIND}:${PORT}" >>"$LOG_FILE" 2>&1
       EC=$?
       echo "$(date '+%F %T') [gost] exited with code $EC, restart in 2s..." >>"$LOG_FILE" 2>&1
       sleep 2

@@ -29,7 +29,7 @@ wsl_host_ip() {
 }
 
 proxy_url_jump() {
-  printf '%s' "${PROXY_URL_JUMP:-http://43.129.192.176:8888}"
+  printf '%s' "${PROXY_URL_JUMP:-http://127.0.0.1:8888}"
 }
 
 proxy_url_clash() {
@@ -91,6 +91,46 @@ EOF
   printf 'export PROXY_MODE=%q\n' "$name"
 }
 
+cmd_tunnel() {
+  local name="${1:-}"
+  case "$name" in
+    jump) _tunnel_jump ;;
+    off)  _tunnel_off ;;
+    *) die "Unknown tunnel command: $name" ;;
+  esac
+}
+
+_tunnel_jump() {
+  # 检查本地端口是否已有服务
+  if nc -z -w 1 127.0.0.1 8888 2>/dev/null; then
+    return 0
+  fi
+
+  # 检查是否已有 ssh 进程在做这个转发
+  if pgrep -f "ssh.*-L.*8888:127.0.0.1:8888.*jump" >/dev/null 2>&1; then
+    local n=0
+    while ! nc -z -w 1 127.0.0.1 8888 2>/dev/null && [[ $n -lt 10 ]]; do
+      sleep 0.5
+      ((n++))
+    done
+    return 0
+  fi
+
+  # 后台启动 SSH 隧道
+  ssh -f -N jump
+}
+
+_tunnel_off() {
+  local pids
+  pids=$(pgrep -f "ssh.*-L.*8888:127.0.0.1:8888.*jump" 2>/dev/null || true)
+  if [[ -n "$pids" ]]; then
+    echo "$pids" | xargs kill 2>/dev/null
+    echo "[*] SSH tunnel stopped"
+  else
+    echo "[*] No SSH tunnel running"
+  fi
+}
+
 cmd_toggle_env() {
   local cur="${PROXY_MODE:-off}"
   case "$cur" in
@@ -108,6 +148,7 @@ main() {
     list) shift; cmd_list "$@" ;;
     status) shift; cmd_status "$@" ;;
     env) shift; cmd_env "${1:-}" ;;
+    tunnel) shift; cmd_tunnel "${1:-}" ;;
     toggle-env) shift; cmd_toggle_env ;;
     *) usage >&2; die "Unknown command: $cmd" ;;
   esac

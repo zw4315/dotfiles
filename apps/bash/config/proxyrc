@@ -9,8 +9,18 @@ export PROXY_MODE="${PROXY_MODE:-off}"
 
 proxy_use() {
   local name="${1:-off}"
+
+  # jump 模式：先确保 SSH 隧道已建立
+  if [[ "$name" == "jump" ]]; then
+    command proxy tunnel jump >/dev/null 2>&1 || true
+  fi
+
   eval "$(command proxy env "$name")"
   command proxy status | sed -n '1p'
+}
+
+proxy_tunnel_off() {
+  command proxy tunnel off
 }
 
 proxy_list() { command proxy list; }
