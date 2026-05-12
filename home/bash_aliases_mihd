@@ -14,7 +14,8 @@ mihd() {
   # 配置文件位置
   config_file="${HOME}/.config/mihomo/config.yaml"
 
-  # 工作目录放在 ~/.local/share/，避免污染 repo
+  # 工作目录：统一放 ~/.local/share/mihomo（符合 XDG 规范）
+  # geoip.metadb 等数据文件放这里，config.yaml 仍在 ~/.config/mihomo/
   work_dir="${HOME}/.local/share/mihomo"
   pid_file="${work_dir}/mihomo.pid"
   log_file="${work_dir}/mihomo.log"
@@ -40,10 +41,31 @@ mihd() {
 
   case "$cmd" in
     start|"")
-      if [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
-        echo "mihomo is already running (PID: $(cat "$pid_file"))"
-        return 1
+      if [[ -f "$pid_file" ]]; then
+        local old_pid
+        old_pid=$(cat "$pid_file")
+        if kill -0 "$old_pid" 2>/dev/null; then
+          echo "mihomo is already running (PID: $old_pid)"
+          return 1
+        else
+          echo "Removing stale PID file (PID: $old_pid no longer exists)"
+          rm -f "$pid_file"
+        fi
       fi
+
+      # 确保 geoip 数据库存在，避免启动死锁（mihomo 需要 geoip → 下载需要代理 → 代理没启动）
+      local geoip_db="${work_dir}/geoip.metadb"
+      local fallback_db="${HOME}/.config/mihomo/geoip.metadb"
+      if [[ ! -f "$geoip_db" && -f "$fallback_db" ]]; then
+        echo "Copying geoip.metadb to work directory..."
+        cp "$fallback_db" "$geoip_db"
+      fi
+      if [[ ! -f "$geoip_db" ]]; then
+        echo "Warning: geoip.metadb not found in ${work_dir}"
+        echo "Mihomo may fail to start if your config uses GEOIP rules."
+        echo "Consider downloading it manually or starting mihomo once without '-d' to let it download."
+      fi
+
       _mihd_rotate_log
       echo "Starting mihomo daemon..."
       nohup mihomo -f "$config_file" -d "$work_dir" >"$log_file" 2>&1 &
@@ -98,15 +120,16 @@ mihd() {
           # 显示端口监听情况
           echo "Ports:"
           if command -v ss >/dev/null 2>&1; then
-            ss -tln 2>/dev/null | grep -E ":7890|:7891|:9090" | head -3 || echo "  (use 'ss -tln' to check)"
+            ss -tln 2>/dev/null | grep -E ":7890|:7891|:9090" | head -3 || echo "  (no expected ports listening)"
           elif command -v netstat >/dev/null 2>&1; then
-            netstat -tln 2>/dev/null | grep -E ":7890|:7891|:9090" | head -3 || echo "  (use 'netstat -tln' to check)"
+            netstat -tln 2>/dev/null | grep -E ":7890|:7891|:9090" | head -3 || echo "  (no expected ports listening)"
           else
             echo "  7890 (HTTP/SOCKS5 mixed)"
             echo "  9090 (Web controller)"
           fi
         else
           echo "mihomo is not running (stale PID file: $pid_file)"
+          echo "Run 'mihd start' to restart, or 'mihd logs' to see why it crashed"
         fi
       else
         local pids
@@ -119,8 +142,82 @@ mihd() {
       fi
       ;;
     config|edit)
-      # 打开配置文件进行编辑
       local config_file="${HOME}/.config/mihomo/config.yaml"
+      local sub_url="${2:-}"
+
+      if [[ -n "$sub_url" ]]; then
+        # 从订阅 URL 下载配置
+        echo "Downloading config from subscription URL..."
+        local tmp_file
+        tmp_file="$(mktemp)"
+        if ! curl -fsSL --connect-timeout 15 "$sub_url" -o "$tmp_file" 2>/dev/null; then
+          echo "❌ Failed to download from: $sub_url"
+          rm -f "$tmp_file"
+          return 1
+        fi
+
+        # 检查内容是否像 clash/mihomo 配置
+        local is_yaml=0
+        if grep -qE '^proxies:|^proxy-groups:|^port:|^mixed-port:' "$tmp_file" 2>/dev/null; then
+          is_yaml=1
+        fi
+
+        # 如果内容很短且看起来像 base64，尝试解码
+        local file_size
+        file_size=$(stat -f%z "$tmp_file" 2>/dev/null || stat -c%s "$tmp_file" 2>/dev/null || echo 0)
+        if [[ "$is_yaml" -eq 0 && "$file_size" -lt 10240 ]]; then
+          local decoded
+          decoded="$(base64 -d "$tmp_file" 2>/dev/null || true)"
+          if [[ -n "$decoded" ]] && echo "$decoded" | grep -qE '^(ss|vmess|trojan|vless)://'; then
+            echo "⚠️  This URL returns raw subscription links (not a clash config)."
+            echo "   You need a subconverter to convert it to clash format."
+            echo "   Example: https://github.com/tindy2013/subconverter"
+            rm -f "$tmp_file"
+            return 1
+          fi
+        fi
+
+        if [[ "$is_yaml" -eq 0 ]]; then
+          echo "⚠️  Downloaded file doesn't look like a valid clash/mihomo config."
+          echo "   Expected fields: proxies, proxy-groups, port, mixed-port"
+          rm -f "$tmp_file"
+          return 1
+        fi
+
+        # 备份旧配置
+        if [[ -f "$config_file" ]]; then
+          local bak_file="${config_file}.bak.$(date +%s)"
+          cp "$config_file" "$bak_file"
+          echo "💾 Old config backed up to: $bak_file"
+        fi
+
+        # 保存新配置，并适配本地环境
+        cp "$tmp_file" "$config_file"
+        rm -f "$tmp_file"
+
+        # 自动修正关键字段以适配本地 mihd
+        sed -i.bak "s|external-controller:.*|external-controller: '127.0.0.1:9090'|" "$config_file" 2>/dev/null || true
+        # 如果同时存在 port 和 mixed-port 且相同，注释掉 port 避免冲突
+        local mixed_port
+        mixed_port=$(grep -E '^mixed-port:' "$config_file" | awk '{print $2}' | tr -d "'\"" | head -1)
+        if [[ -n "$mixed_port" ]]; then
+          sed -i.bak "/^port:.*${mixed_port}/d" "$config_file" 2>/dev/null || true
+        fi
+        rm -f "${config_file}.bak" 2>/dev/null || true
+
+        echo "✅ Config saved to: $config_file"
+
+        # 如果 mihomo 正在运行，重启它
+        if [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" 2>/dev/null; then
+          echo "🔄 Restarting mihomo..."
+          mihd force
+        else
+          echo "Run 'mihd start' to apply the new config."
+        fi
+        return 0
+      fi
+
+      # 无 URL 参数时，打开编辑器
       if [[ -f "$config_file" ]]; then
         ${EDITOR:-vim} "$config_file"
       else
@@ -221,23 +318,51 @@ print(f\"Use 'mihd use <number>' to switch\")
       local api_url="http://127.0.0.1:9090"
       local node_name=""
       
-      # 处理自动选择模式 (0 或 auto)
+      # 处理自动选择模式 (0 或 auto) —— 选择延迟最低且已测速（delay > 0）的节点
       if [[ "$target" == "0" ]] || [[ "$target" == "auto" ]]; then
-        # 查找自动选择组的名称
         node_name=$(curl -s "$api_url/proxies" 2>/dev/null | python3 -c "
 import sys, json
+
 data = json.load(sys.stdin)
-# 查找 url-test 类型的代理组
+
+# 排除的信息节点关键词（与 nodes 命令保持一致）
+SKIP_PATTERNS = [
+    r'剩余流量', r'套餐到期', r'过滤', r'如遇', r'欢迎加入',
+    r'永久地址', r'大陆访问', r'官方', r'Telegram', r'@',
+    r'V2NY', r'V2NAIUN', r'更新订阅', r'群组', r'失效'
+]
+
+def is_real_node(name):
+    for pattern in SKIP_PATTERNS:
+        if pattern in name:
+            return False
+    return True
+
+nodes = []
 for name, info in data.get('proxies', {}).items():
-    if info.get('type') == 'url-test':
-        print(name)
-        break
+    # 支持 Shadowsocks、Trojan、Vmess、Vless 等代理节点
+    if info.get('type') in ['Shadowsocks', 'Vmess', 'Vless', 'Trojan', 'Socks5']:
+        if not is_real_node(name):
+            continue
+        history = info.get('history', [])
+        delay = history[-1].get('delay', 0) if history else 0
+        # 只取已测速（delay > 0）的节点
+        if delay > 0:
+            nodes.append((name, delay))
+
+# 按延迟排序（低的在前）
+nodes.sort(key=lambda x: x[1])
+
+if nodes:
+    print(nodes[0][0])
+else:
+    print('NO_NODE')
 " 2>/dev/null)
-        if [[ -z "$node_name" ]]; then
-          echo "❌ Auto-select group not found"
+        if [[ "$node_name" == "NO_NODE" ]] || [[ -z "$node_name" ]]; then
+          echo "❌ No available node with latency data. Run 'mihd nodes' to check."
           return 1
         fi
-        echo "🔄 Switching to auto-select: $node_name"
+        echo "🔄 Auto-selecting lowest latency node: $node_name"
       # 如果是数字（非0），获取对应节点名称
       elif [[ "$target" =~ ^[0-9]+$ ]]; then
         node_name=$(curl -s "$api_url/proxies" 2>/dev/null | python3 -c "

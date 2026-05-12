@@ -14,3 +14,14 @@ config/nvim/lazyvim.json
 # Backup files
 *~
 home/vim/plugged/
+
+# Mihomo runtime config (contains sensitive subscription data)
+config/mihomo/config.yaml
+config/mihomo/*.bak*
+config/mihomo/cache.db
+config/mihomo/geoip.metadb
+config/mihomo/proxies/
+config/mihomo/rules/
+
+# Kimi CLI metadata
+.metadata/

@@ -80,19 +80,14 @@ app_install() {
 }
 
 app_configure() {
-  local src="$DOTFILES/config/mihomo"
-  link_config_dir "$src" "mihomo"
-
-  # 链接 mihomo 专用 alias 和函数
-  local aliases_src="$DOTFILES/home/bash_aliases_mihd"
-  if [[ -f "$aliases_src" ]]; then
-    link_home_file "$aliases_src" ".bash_aliases_mihd"
-  fi
-
-  # 首次配置：复制模板并提示用户编辑
   local config_dir="$HOME/.config/mihomo"
+  ensure_dir "$config_dir"
+
+  # 首次配置：从模板复制 config.yaml（如果不存在）
+  # 注意：config/mihomo/config.yaml 已从 git 追踪中移除（避免提交敏感信息），
+  # 代码库中保留 config.yaml.template 作为初始化模板。
   local dst="${config_dir}/config.yaml"
-  local template="$DOTFILES/config/mihomo/config.yaml"
+  local template="$DOTFILES/config/mihomo/config.yaml.template"
 
   if [[ -f "$template" && ! -f "$dst" ]]; then
     if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
@@ -100,8 +95,14 @@ app_configure() {
     else
       cp "$template" "$dst"
       log_info "  Copied mihomo config template: ${dst}"
-      log_warn "  Please edit ${dst} and add your subscription URL"
+      log_warn "  Please run 'mihd config <url>' to apply your subscription"
     fi
+  fi
+
+  # 链接 mihomo 专用 alias 和函数
+  local aliases_src="$DOTFILES/home/bash_aliases_mihd"
+  if [[ -f "$aliases_src" ]]; then
+    link_home_file "$aliases_src" ".bash_aliases_mihd"
   fi
 }
 

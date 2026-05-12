@@ -1,0 +1,60 @@
+# =============================================
+# Mihomo 配置文件模板
+#
+# ⚠️  重要: 请勿在此文件中填写真实订阅信息！
+#    运行 `mihd config <url>` 从订阅链接下载完整配置。
+#
+# 📋 快速开始:
+#    mihd config https://your-subscribe-url.com/xxx
+#    mihd start
+#    mihd nodes
+# =============================================
+
+# HTTP + SOCKS5 统一端口
+mixed-port: 7890
+
+# 外部控制器（Web 面板）
+external-controller: 127.0.0.1:9090
+
+# 允许局域网连接
+bind-address: '0.0.0.0'
+
+log-level: info
+ipv6: false
+unified-delay: true
+
+# 关闭内置 DNS，使用系统 DNS（更稳定，避免 DoH 依赖问题）
+dns:
+  enable: false
+
+# =============================================
+# 🔒 代理配置
+# =============================================
+# 请通过 `mihd config <url>` 下载你的订阅配置。
+# 下方为最小占位，确保 mihomo 能启动（但无代理功能）。
+
+proxies: []
+
+proxy-groups:
+  - name: 🚀 节点选择
+    type: select
+    proxies:
+      - 🎯 全球直连
+
+  - name: 🎯 全球直连
+    type: select
+    proxies:
+      - DIRECT
+
+  - name: 🐟 漏网之鱼
+    type: select
+    proxies:
+      - 🎯 全球直连
+
+rules:
+  - DOMAIN-SUFFIX,local,🎯 全球直连
+  - IP-CIDR,127.0.0.0/8,🎯 全球直连,no-resolve
+  - IP-CIDR,192.168.0.0/16,🎯 全球直连,no-resolve
+  - IP-CIDR,10.0.0.0/8,🎯 全球直连,no-resolve
+  - GEOIP,CN,🎯 全球直连,no-resolve
+  - MATCH,🐟 漏网之鱼
