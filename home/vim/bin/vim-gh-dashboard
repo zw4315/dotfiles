@@ -35,25 +35,31 @@ def load_daily_cache():
     return None
 
 
-def save_daily_cache(data):
+WEEKS_TO_SHOW = 20
+
+
+def save_daily_cache(data, complete_through=None):
     cache_file = get_daily_cache_path()
     try:
+        payload = {
+            'last_updated': datetime.now().isoformat(),
+            'version': 2,
+            'data': data
+        }
+        if complete_through:
+            payload['complete_through'] = complete_through
         with open(cache_file, 'w') as f:
-            json.dump({
-                'last_updated': datetime.now().isoformat(),
-                'data': data
-            }, f)
+            json.dump(payload, f)
     except Exception:
         pass
 
 
-def is_daily_cache_fresh(cache, max_age_hours=1):
+def is_today_cache(cache):
     if not cache or 'last_updated' not in cache:
         return False
     try:
         last_updated = datetime.fromisoformat(cache['last_updated'])
-        age_hours = (datetime.now() - last_updated).total_seconds() / 3600
-        return age_hours < max_age_hours
+        return last_updated.date() == datetime.now().date()
     except Exception:
         return False
 
@@ -149,20 +155,51 @@ def get_repo_commit_info(repo_name, since, until, git_name, git_email):
 # ---------------------------------------------------------------------------
 # Aggregate commits across all repos
 # ---------------------------------------------------------------------------
+def aggregate_repo_daily(repo_daily):
+    daily = {}
+    repos = {}
+    cutoff = datetime.now().date() - timedelta(weeks=WEEKS_TO_SHOW)
+    for repo_name, date_counts in repo_daily.items():
+        repo_total = 0
+        for date_str, count in date_counts.items():
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+            if date_obj >= cutoff:
+                daily[date_str] = daily.get(date_str, 0) + count
+                repo_total += count
+        if repo_total > 0:
+            repos[repo_name] = repo_total
+    repo_stats = sorted(repos.items(), key=lambda x: x[1], reverse=True)
+    return daily, repo_stats
+
+
 def get_all_commit_info():
     cache = load_daily_cache()
-    if cache and is_daily_cache_fresh(cache, max_age_hours=1):
-        return cache['data']['daily'], cache['data']['repos']
+
+    # 同一天内直接返回缓存
+    if cache and is_today_cache(cache):
+        data = cache['data']
+        return data['daily'], data['repos']
+
+    repo_daily = {}
+    complete_through = None
+    if cache and 'data' in cache:
+        repo_daily = cache['data'].get('repo_daily', {})
+        complete_through = cache.get('complete_through')
 
     now = datetime.now()
-    since = (now - timedelta(days=365)).strftime("%Y-%m-%dT00:00:00Z")
+    today = now.date()
+
+    if complete_through:
+        since_date = datetime.strptime(complete_through, "%Y-%m-%d").date() + timedelta(days=1)
+    else:
+        since_date = today - timedelta(weeks=WEEKS_TO_SHOW)
+
+    since = datetime.combine(since_date, datetime.min.time()).strftime("%Y-%m-%dT00:00:00Z")
     until = now.strftime("%Y-%m-%dT23:59:59Z")
     git_name, git_email = get_git_identity()
     repos = get_all_repos()
 
-    daily_counts = {}
-    repo_stats = []
-
+    new_repo_daily = {}
     with ThreadPoolExecutor(max_workers=5) as executor:
         futures = {
             executor.submit(get_repo_commit_info, r['name'], since, until, git_name, git_email): r['name']
@@ -172,12 +209,39 @@ def get_all_commit_info():
             repo_name = futures[future]
             dates, count = future.result()
             if count > 0:
-                repo_stats.append((repo_name, count))
+                new_repo_daily[repo_name] = {}
                 for date_str in dates:
-                    daily_counts[date_str] = daily_counts.get(date_str, 0) + 1
+                    new_repo_daily[repo_name][date_str] = new_repo_daily[repo_name].get(date_str, 0) + 1
 
-    repo_stats.sort(key=lambda x: x[1], reverse=True)
-    save_daily_cache({'daily': daily_counts, 'repos': repo_stats})
+    # 合并新数据（日期范围无重叠，因为 since_date > complete_through）
+    for repo_name, date_counts in new_repo_daily.items():
+        if repo_name not in repo_daily:
+            repo_daily[repo_name] = {}
+        for date_str, count in date_counts.items():
+            repo_daily[repo_name][date_str] = count
+
+    # 裁剪超出显示窗口的旧数据
+    cutoff = today - timedelta(weeks=WEEKS_TO_SHOW)
+    for repo_name in list(repo_daily.keys()):
+        filtered = {
+            d: c for d, c in repo_daily[repo_name].items()
+            if datetime.strptime(d, "%Y-%m-%d").date() >= cutoff
+        }
+        if filtered:
+            repo_daily[repo_name] = filtered
+        else:
+            del repo_daily[repo_name]
+
+    daily_counts, repo_stats = aggregate_repo_daily(repo_daily)
+
+    # 昨天的数据已完整（查询从昨天 00:00 开始）
+    new_complete_through = (today - timedelta(days=1)).strftime("%Y-%m-%d")
+
+    save_daily_cache({
+        'repo_daily': repo_daily,
+        'daily': daily_counts,
+        'repos': repo_stats
+    }, complete_through=new_complete_through)
     return daily_counts, repo_stats
 
 
@@ -354,75 +418,123 @@ def run_gh_repos(limit=8):
 
 
 # ---------------------------------------------------------------------------
+# GH availability check
+# ---------------------------------------------------------------------------
+def is_gh_available():
+    # 先快速探测 gh 命令是否存在（避免 FileNotFoundError 慢路径）
+    try:
+        subprocess.run(
+            ["gh", "--version"],
+            capture_output=True, timeout=1
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+
+    # 再验证是否已登录（超时设短，不要阻塞 Vim 启动）
+    try:
+        result = subprocess.run(
+            ["gh", "auth", "status"],
+            capture_output=True, text=True, timeout=2
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 def main():
-    output = []
-    repo_stats = None
-    daily_counts = None
+    # Level 1: gh available → full GitHub dashboard
+    if is_gh_available():
+        output = []
+        repo_stats = None
+        daily_counts = None
 
-    try:
-        daily_counts, repo_stats = get_all_commit_info()
-        total = sum(daily_counts.values())
+        try:
+            daily_counts, repo_stats = get_all_commit_info()
+            total = sum(daily_counts.values())
 
-        data = build_calendar_from_daily(daily_counts)
-        output.append("  GitHub Contribution Heatmap")
-        output.append("  (based on actual commits across all repos)")
-        output.append("")
-        output.extend(generate_heatmap(data))
-        output.append("")
-    except Exception as e:
-        output.append("  Unable to fetch GitHub data")
-        output.append(f"  Reason: {e}")
+            data = build_calendar_from_daily(daily_counts)
+            output.append("  GitHub Contribution Heatmap")
+            output.append("  (based on actual commits across all repos)")
+            output.append("")
+            output.extend(generate_heatmap(data))
+            output.append("")
+        except Exception as e:
+            output.append("  Unable to fetch GitHub data")
+            output.append(f"  Reason: {e}")
 
-    # Build side-by-side sections
-    left_lines = []
-    right_lines = []
+        # Build side-by-side sections
+        left_lines = []
+        right_lines = []
 
-    if repo_stats:
-        left_lines.append("Top 10 Active Repositories")
-        left_lines.append("")
-        for repo_name, count in repo_stats[:10]:
-            left_lines.append(f"{repo_name}: {count} commits")
-
-    repos = run_gh_repos()
-    if repos:
-        right_lines.append("Recently Updated Repositories")
-        right_lines.append("")
-        for date_str, name, visibility in repos:
-            icon = "●" if visibility == "public" else "○"
-            right_lines.append(f"{date_str} {icon} {name}")
-
-    # If both sections exist, render side-by-side
-    if left_lines and right_lines:
-        left_prefixed = [f"   {line}" for line in left_lines]
-        right_prefixed = [f"   {line}" for line in right_lines]
-        left_width = max(len(line) for line in left_prefixed)
-        max_rows = max(len(left_prefixed), len(right_prefixed))
-
-        for i in range(max_rows):
-            left = left_prefixed[i] if i < len(left_prefixed) else " " * left_width
-            right = right_prefixed[i] if i < len(right_prefixed) else ""
-            output.append(f"{left:<{left_width}}    {right}")
-    else:
-        # Fallback to original vertical layout
         if repo_stats:
-            output.append("   Top 10 Active Repositories")
-            output.append("")
+            left_lines.append("Top 10 Active Repositories")
+            left_lines.append("")
             for repo_name, count in repo_stats[:10]:
-                output.append(f"   {repo_name}: {count} commits")
-            output.append("")
+                left_lines.append(f"{repo_name}: {count} commits")
 
+        repos = run_gh_repos()
         if repos:
-            output.append("---REPOS---")
-            output.append("  Recently Updated Repositories")
-            output.append("")
+            right_lines.append("Recently Updated Repositories")
+            right_lines.append("")
             for date_str, name, visibility in repos:
                 icon = "●" if visibility == "public" else "○"
-                output.append(f"   {date_str} {icon} {name}")
+                right_lines.append(f"{date_str} {icon} {name}")
 
-    for line in output:
-        print(line)
+        # If both sections exist, render side-by-side
+        if left_lines and right_lines:
+            left_prefixed = [f"   {line}" for line in left_lines]
+            right_prefixed = [f"   {line}" for line in right_lines]
+            left_width = max(len(line) for line in left_prefixed)
+            max_rows = max(len(left_prefixed), len(right_prefixed))
+
+            for i in range(max_rows):
+                left = left_prefixed[i] if i < len(left_prefixed) else " " * left_width
+                right = right_prefixed[i] if i < len(right_prefixed) else ""
+                output.append(f"{left:<{left_width}}    {right}")
+        else:
+            # Fallback to original vertical layout
+            if repo_stats:
+                output.append("   Top 10 Active Repositories")
+                output.append("")
+                for repo_name, count in repo_stats[:10]:
+                    output.append(f"   {repo_name}: {count} commits")
+                output.append("")
+
+            if repos:
+                output.append("---REPOS---")
+                output.append("  Recently Updated Repositories")
+                output.append("")
+                for date_str, name, visibility in repos:
+                    icon = "●" if visibility == "public" else "○"
+                    output.append(f"   {date_str} {icon} {name}")
+
+        for line in output:
+            print(line)
+        return
+
+    # Level 2: not gh, but inside a git repo → show local recent commits
+    try:
+        result = subprocess.run(
+            ["git", "log", "--oneline", "-10", "--no-decorate"],
+            capture_output=True, text=True, timeout=2
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            print("  GitHub Dashboard")
+            print("  Run `gh auth login` to enable cross-repo heatmap")
+            print("")
+            print("  Recent commits (this repo)")
+            for line in result.stdout.strip().split("\n")[:10]:
+                print(f"  {line}")
+            return
+    except Exception:
+        pass
+
+    # Level 3: neither gh nor git → minimal welcome
+    print("  GitHub Dashboard")
+    print("  Run `gh auth login` to enable contribution heatmap")
 
 
 if __name__ == "__main__":
