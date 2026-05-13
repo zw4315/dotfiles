@@ -358,6 +358,8 @@ def run_gh_repos(limit=8):
 # ---------------------------------------------------------------------------
 def main():
     output = []
+    repo_stats = None
+    daily_counts = None
 
     try:
         daily_counts, repo_stats = get_all_commit_info()
@@ -369,25 +371,55 @@ def main():
         output.append("")
         output.extend(generate_heatmap(data))
         output.append("")
+    except Exception as e:
+        output.append("  Unable to fetch GitHub data")
+        output.append(f"  Reason: {e}")
 
+    # Build side-by-side sections
+    left_lines = []
+    right_lines = []
+
+    if repo_stats:
+        left_lines.append("Top 10 Active Repositories")
+        left_lines.append("")
+        for repo_name, count in repo_stats[:10]:
+            left_lines.append(f"{repo_name}: {count} commits")
+
+    repos = run_gh_repos()
+    if repos:
+        right_lines.append("Recently Updated Repositories")
+        right_lines.append("")
+        for date_str, name, visibility in repos:
+            icon = "●" if visibility == "public" else "○"
+            right_lines.append(f"{date_str} {icon} {name}")
+
+    # If both sections exist, render side-by-side
+    if left_lines and right_lines:
+        left_prefixed = [f"   {line}" for line in left_lines]
+        right_prefixed = [f"   {line}" for line in right_lines]
+        left_width = max(len(line) for line in left_prefixed)
+        max_rows = max(len(left_prefixed), len(right_prefixed))
+
+        for i in range(max_rows):
+            left = left_prefixed[i] if i < len(left_prefixed) else " " * left_width
+            right = right_prefixed[i] if i < len(right_prefixed) else ""
+            output.append(f"{left:<{left_width}}    {right}")
+    else:
+        # Fallback to original vertical layout
         if repo_stats:
             output.append("   Top 10 Active Repositories")
             output.append("")
             for repo_name, count in repo_stats[:10]:
                 output.append(f"   {repo_name}: {count} commits")
             output.append("")
-    except Exception as e:
-        output.append("  Unable to fetch GitHub data")
-        output.append(f"  Reason: {e}")
 
-    repos = run_gh_repos()
-    if repos:
-        output.append("---REPOS---")
-        output.append("  Recently Updated Repositories")
-        output.append("")
-        for date_str, name, visibility in repos:
-            icon = "●" if visibility == "public" else "○"
-            output.append(f"   {date_str} {icon} {name}")
+        if repos:
+            output.append("---REPOS---")
+            output.append("  Recently Updated Repositories")
+            output.append("")
+            for date_str, name, visibility in repos:
+                icon = "●" if visibility == "public" else "○"
+                output.append(f"   {date_str} {icon} {name}")
 
     for line in output:
         print(line)
