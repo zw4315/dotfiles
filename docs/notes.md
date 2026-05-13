@@ -1,7 +1,13 @@
-- mac 需要有 ll 的命令 alias
-- mac 需要有配置 git 用户名, 邮箱
+- vim 里怎么做到 obsidian 级别的渲染
+- 本地的 ollama 的 fallback
+- terminal 实现直接看 markdown
+- 按照 brew install pngpaste + .sh 的思路, 配置一个 agent 工具
+  - [agent-paste](https://gist.githubusercontent.com/canghai118/0230a50ac2afa49897634b70febe805a/raw/4bf4266dc04b5a8df0aa7ba88f02bc908c6011f3/iterm_smart_paste.sh)
 - 需要有配置, 知道我在 spec os 的情况下, 可以选择
 - 要有 optional 可以装 docker
-- 当前搞得 go 重装似乎没必要, 分层没分好
 - 安装 `nvim`、`git`、`rg`（ripgrep）建议再装：`fd`（telescope 更好用）
+
 - 需要把几个系统级别的 sh 搞成配置文件吗？/home/edward/.profile 
+- 当前搞得 go 重装似乎没必要, 分层没分好
+- mac 需要有配置 git 用户名, 邮箱
+- mac 需要有 ll 的命令 alias
