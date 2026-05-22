@@ -31,6 +31,30 @@
 [color]
   ui = auto
 
+[color "diff"]
+  meta = 178 bold
+  frag = 117 bold
+  func = 252
+  old = 203 bold
+  new = 114 bold
+  whitespace = reverse 203
+  oldMoved = 203 bold
+  oldMovedAlternative = 178 bold
+  newMoved = 114 bold
+  newMovedAlternative = 117 bold
+
+[delta]
+  syntax-theme = Monokai Extended Bright
+  file-style = 178 bold
+  hunk-header-style = 117 bold
+  minus-style = 203 normal
+  plus-style = 114 normal
+  line-numbers-minus-style = 203 bold
+  line-numbers-plus-style = 114 bold
+  line-numbers-left-style = 203
+  line-numbers-right-style = 114
+  line-numbers-zero-style = 244
+
 [alias]
   # Basic shortcuts
   st = status -sb

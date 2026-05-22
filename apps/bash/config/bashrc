@@ -106,7 +106,11 @@ fi
 export LS_COLORS="rs=0:di=1;38;5;75:ln=1;38;5;80:ex=1;38;5;114:fi=38;5;252:so=1;38;5;44:pi=38;5;178:bd=1;38;5;178:cd=1;38;5;178:or=1;38;5;203:mi=1;38;5;203"
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
-  alias ls='ls -G'
+  if command -v gls >/dev/null 2>&1; then
+    alias ls='gls --color=auto'
+  else
+    alias ls='ls -G'
+  fi
 else
   alias ls='ls --color=auto'
 fi
