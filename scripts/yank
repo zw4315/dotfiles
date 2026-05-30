@@ -5,6 +5,7 @@
 # Copies the contents of the given files (or stdin, if no files are given) to
 # the terminal that runs this program.  If this program is run inside tmux(1),
 # then it also copies the given contents into tmux's current clipboard buffer.
+# If this program is run on macOS, then it also copies to the macOS pasteboard.
 # If this program is run inside X11, then it also copies to the X11 clipboard.
 #
 # This is achieved by writing an OSC 52 escape sequence to the said terminal.
@@ -47,6 +48,9 @@ printf_escape "\033]52;c;$( input | head -c $max | base64 | tr -d '\r\n' )\a"
 
 # copy to tmux
 test -n "$TMUX" && maybe tmux load-buffer -
+
+# copy via macOS pasteboard
+maybe pbcopy
 
 # copy via X11
 test -n "$DISPLAY" && alive xhost && {
