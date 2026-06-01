@@ -14,13 +14,14 @@ cd dotfiles
 
 - Re-apply links/config: `./init.sh`
 - Preview changes only: `./init.sh --dry-run`
+- Install only tree: `./init.sh --app tree`
 - Neovim plugin sync: `nvim "+Lazy sync" +qa`
 
 ## Verification
 
 - Check shell links: `ls -l ~/.bashrc ~/.profile ~/.gitconfig`
 - Check Neovim config link: `ls -l ~/.config/nvim`
-- Check tools: `git --version`, `rg --version`, `fd --version`
+- Check tools: `git --version`, `rg --version`, `fd --version`, `tree --version`
 
 ## Troubleshooting
 

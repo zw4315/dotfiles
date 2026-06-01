@@ -19,9 +19,10 @@ vim  = true   # 传统 Vim 编辑器
 tmux = true   # 终端复用器
 
 [search]
-fd  = true   # 替代 find，更快更友好
-rg  = true   # 替代 grep，递归搜索
-fzf = true   # 命令行模糊查找
+fd   = true   # 替代 find，更快更友好
+rg   = true   # 替代 grep，递归搜索
+fzf  = true   # 命令行模糊查找
+tree = true   # 树状目录浏览
 
 # === 语言环境（按需开启）===
 # 以下工具默认关闭。如果你在 macOS 上有对应开发需求，请改为 true。

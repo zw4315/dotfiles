@@ -55,6 +55,11 @@ desc = "命令行模糊查找器"
 platforms = ["darwin", "linux"]
 group = "search"
 
+[tree]
+desc = "以树状结构显示目录内容"
+platforms = ["darwin", "linux"]
+group = "search"
+
 [go]
 desc = "Go 编程语言"
 platforms = ["darwin", "linux"]
