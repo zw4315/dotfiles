@@ -1,3 +1,4 @@
+- terminal 需要可以复制图片给 cli
 - vim 里怎么做到 obsidian 级别的渲染
 - 本地的 ollama 的 fallback
 - terminal 实现直接看 markdown
