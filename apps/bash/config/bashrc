@@ -21,8 +21,8 @@ HISTCONTROL=ignoreboth
 shopt -s histappend
 
 # for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
-HISTSIZE=1000
-HISTFILESIZE=2000
+HISTSIZE=10000
+HISTFILESIZE=20000
 
 # check the window size after each command and, if necessary,
 # update the values of LINES and COLUMNS.
@@ -113,6 +113,16 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
   fi
 else
   alias ls='ls --color=auto'
+fi
+
+# fzf key bindings (Ctrl+R, Ctrl+T, Alt+C)
+# New fzf (0.48+) supports `fzf --bash`, older versions use bundled files
+if command -v fzf >/dev/null 2>&1; then
+    if fzf --bash >/dev/null 2>&1; then
+        eval "$(fzf --bash)"
+    elif [ -f /usr/share/doc/fzf/examples/key-bindings.bash ]; then
+        source /usr/share/doc/fzf/examples/key-bindings.bash
+    fi
 fi
 
 # 简化 cd
