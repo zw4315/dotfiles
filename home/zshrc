@@ -92,3 +92,6 @@ export PATH="$HOME/.grok/bin:$PATH"
 if command -v gdircolors &> /dev/null; then
     eval "$(gdircolors -b)"
 fi
+
+# kimi-code
+export PATH="/Users/edward/.kimi-code/bin:$PATH"
