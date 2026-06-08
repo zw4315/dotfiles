@@ -29,3 +29,7 @@ Host jump
     LocalForward 8888 127.0.0.1:8888
     ServerAliveInterval 30
     ServerAliveCountMax 3
+
+Host wsl
+    HostName 192.168.3.42
+    User ted
