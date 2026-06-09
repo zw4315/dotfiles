@@ -20,7 +20,9 @@ Examples:
 EOF
 }
 
-is_wsl() { grep -qi microsoft /proc/version 2>/dev/null; }
+is_wsl() {
+  grep -qiE 'microsoft|wsl' /proc/sys/kernel/osrelease /proc/version 2>/dev/null
+}
 
 is_macos() { [[ "$(uname)" == "Darwin" ]]; }
 
@@ -37,17 +39,22 @@ proxy_url_jump() {
 }
 
 proxy_url_clash() {
+  local explicit_port="${1:-}"
   local host="${PROXY_CLASH_HOST:-}"
-  local port="${PROXY_CLASH_PORT:-7890}"
+  local port="${explicit_port:-${PROXY_CLASH_PORT:-}}"
 
   if [[ -z "$host" ]]; then
+    host="127.0.0.1"
     if is_wsl; then
-      host="$(wsl_host_ip)"
+      # WSL: default to local mihomo (7892).
+      # To use Windows host clash instead, set PROXY_CLASH_PORT=7890.
+      port="${port:-7892}"
     else
-      host="127.0.0.1"
+      port="${port:-7890}"
     fi
   fi
 
+  : "${port:=7890}"
   printf 'http://%s:%s' "$host" "$port"
 }
 
@@ -68,6 +75,7 @@ cmd_status() {
 
 cmd_env() {
   local name="${1:-}"
+  local custom_port="${2:-}"
   if [[ -z "$name" || "$name" == "off" ]]; then
     cat <<'EOF'
 unset http_proxy https_proxy all_proxy no_proxy
@@ -87,7 +95,7 @@ EOF
   local url
   case "$name" in
     jump) url="$(proxy_url_jump)" ;;
-    clash) url="$(proxy_url_clash)" ;;
+    clash) url="$(proxy_url_clash "$custom_port")" ;;
     *) usage >&2; die "Unknown env profile: '$name'. Use: jump, clash, off" ;;
   esac
 
@@ -151,7 +159,7 @@ main() {
     -h|--help|"") usage; exit 0 ;;
     list) shift; cmd_list ;;
     status) shift; cmd_status ;;
-    env) shift; cmd_env "${1:-}" ;;
+    env) shift; cmd_env "$@" ;;
     tunnel) shift; cmd_tunnel "${1:-}" ;;
     toggle-env) shift; cmd_toggle_env ;;
     *) usage >&2; die "Unknown command: '$cmd'" ;;
