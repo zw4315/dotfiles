@@ -74,7 +74,7 @@ alias t="tmux a"
 alias tt="taskwarrior-tui"
 
 # 查看当前 IP 和地理位置
-alias whereme='curl -s http://ip-api.com/json'
+alias whereme='curl -s http://ip-api.com/json && echo'
 
 # ssh 快捷操作：复制公钥到远程主机（自动读取 ~/.ssh/config）
 alias ssh-auth='ssh-copy-id'
