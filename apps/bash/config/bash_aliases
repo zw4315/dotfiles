@@ -49,7 +49,15 @@ alias penv='proxy_env'
 alias ptun='proxy_tunnel'
 
 # 组合快捷方式
-alias pjump='proxy_tunnel jump >/dev/null 2>&1 || true; proxy_env jump'
+pjump() {
+  local host="${1:-jump}"
+  proxy_tunnel "$host" >/dev/null 2>&1 || true
+  case "$host" in
+    tt1) export PROXY_URL_JUMP="http://127.0.0.1:8889" ;;
+    *)   export PROXY_URL_JUMP="http://127.0.0.1:8888" ;;
+  esac
+  proxy_env jump
+}
 alias poff='proxy_tunnel off; proxy_env off'
 alias pclash='proxy_env clash'
 alias ptoggle='proxy_toggle'

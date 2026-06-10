@@ -7,7 +7,7 @@ usage() {
   cat <<'EOF'
 Usage:
   proxy env <jump|clash|off>      Print shell export/unset code
-  proxy tunnel <jump|off>         Manage SSH tunnel
+  proxy tunnel <jump|tt1|off>     Manage SSH tunnel
   proxy status                    Show current proxy status
   proxy list                      List available proxy profiles
   proxy toggle-env                Toggle between off/jump/clash
@@ -106,26 +106,29 @@ EOF
   printf 'export PROXY_MODE=%q\n' "$name"
 }
 
-_tunnel_jump() {
-  if nc -z -w 1 127.0.0.1 8888 2>/dev/null; then
+_tunnel_host() {
+  local host="${1}"
+  local port="${2:-8888}"
+
+  if nc -z -w 1 127.0.0.1 "$port" 2>/dev/null; then
     return 0
   fi
 
-  if pgrep -f "ssh.*-L.*8888:127.0.0.1:8888.*jump" >/dev/null 2>&1; then
+  if pgrep -f "ssh.*-L.*${port}:127.0.0.1:8888.*${host}" >/dev/null 2>&1; then
     local n=0
-    while ! nc -z -w 1 127.0.0.1 8888 2>/dev/null && [[ $n -lt 10 ]]; do
+    while ! nc -z -w 1 127.0.0.1 "$port" 2>/dev/null && [[ $n -lt 10 ]]; do
       sleep 0.5
       ((n++))
     done
     return 0
   fi
 
-  ssh -f -N jump
+  ssh -f -N -L "${port}:127.0.0.1:8888" "$host"
 }
 
 _tunnel_off() {
   local pids
-  pids=$(pgrep -f "ssh.*-L.*8888:127.0.0.1:8888.*jump" 2>/dev/null || true)
+  pids=$(pgrep -f "ssh.*-L.*:127.0.0.1:8888" 2>/dev/null || true)
   if [[ -n "$pids" ]]; then
     echo "$pids" | xargs kill 2>/dev/null
     echo "[*] SSH tunnel stopped"
@@ -137,9 +140,10 @@ _tunnel_off() {
 cmd_tunnel() {
   local name="${1:-}"
   case "$name" in
-    jump) _tunnel_jump ;;
+    jump) _tunnel_host jump 8888 ;;
+    tt1)  _tunnel_host tt1 8889 ;;
     off)  _tunnel_off ;;
-    *) usage >&2; die "Unknown tunnel action: '$name'. Use: jump, off" ;;
+    *) usage >&2; die "Unknown tunnel action: '$name'. Use: jump, tt1, off" ;;
   esac
 }
 
