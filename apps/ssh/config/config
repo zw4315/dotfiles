@@ -33,3 +33,11 @@ Host jump
 Host wsl
     HostName 192.168.3.42
     User ted
+
+Host tt1
+    HostName 43.131.41.193
+    User edward
+
+Host tt2
+    HostName 124.223.158.247
+    User edward

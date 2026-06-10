@@ -67,6 +67,8 @@ alias bd2='ssh edward@101.126.23.57'
 alias yc='ssh -p 43568 edward@38.207.176.66'
 alias hd='ssh edward@156.239.24.42'
 alias centos='ssh edward@43.129.192.176'
+alias tt1='ssh tt1'
+alias tt2='ssh tt2'
 alias llm='ls -lt --reverse'
 
 alias t="tmux a"
