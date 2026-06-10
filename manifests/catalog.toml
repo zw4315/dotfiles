@@ -99,3 +99,8 @@ group = "devtool"
 desc = "Mihomo (Clash.Meta) 代理工具"
 platforms = ["darwin", "linux"]
 group = "proxy"
+
+[gost]
+desc = "GOST proxy tunnel server"
+platforms = ["darwin", "linux"]
+group = "proxy"

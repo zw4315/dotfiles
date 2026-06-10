@@ -10,11 +10,18 @@
 
 ## 快速开始
 
+### 快速开始
+
 ```bash
-# 克隆仓库
+# 克隆仓库（private repo 需先配置 SSH key）
 git clone <repo-url> ~/.dotfiles
 cd ~/.dotfiles
+./init.sh
+```
 
+### 常用命令
+
+```bash
 # 查看当前机器状态（已装/缺失/未启用/不支持）
 ./init.sh --check
 

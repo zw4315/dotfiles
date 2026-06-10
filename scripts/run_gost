@@ -1,9 +1,9 @@
+#!/usr/bin/env bash
 # 用法
 # ./run_gost start
 # ./run_gost stop
 # ./run_gost status
 # ./run_gost logs
-
 
 set -uo pipefail
 
