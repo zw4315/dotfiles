@@ -58,6 +58,9 @@ endif
 " config project root markers.
 let g:gutentags_project_root = ['.root']
 
+" 不对 markdown/conf 等文件生成/更新 tags，避免 gtags-cscope 报错
+let g:gutentags_exclude_filetypes = ['markdown', 'conf']
+
 " 关闭自动跳转目录（如果你不想 gutentags_plus 自动 lcd）
 let g:gutentags_plus_switch = 1
 
