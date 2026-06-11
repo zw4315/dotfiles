@@ -49,6 +49,7 @@ alias penv='proxy_env'
 alias ptun='proxy_tunnel'
 
 # 组合快捷方式
+unalias pjump 2>/dev/null || true
 pjump() {
   local host="${1:-jump}"
   proxy_tunnel "$host" >/dev/null 2>&1 || true
