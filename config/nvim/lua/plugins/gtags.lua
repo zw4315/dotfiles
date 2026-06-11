@@ -3,7 +3,7 @@ return {
   {
     "wsdjeg/gtags.nvim",
     event = "VeryLazy",
-    cmd = { "Gtags" },
+    cmd = { "Gtags", "GtagsRebuild" },
     dependencies = {
       "rcarriga/nvim-notify",
       "wsdjeg/job.nvim",
@@ -100,6 +100,16 @@ return {
           end
         end,
       })
+
+      -- 强制重建当前项目的 gtags 数据库（目录重构后用）
+      vim.api.nvim_create_user_command("GtagsRebuild", function()
+        local db = project_db_file()
+        local db_dir = vim.fn.fnamemodify(db, ":h")
+        -- 直接删掉整个项目缓存目录，确保没有残留死路径
+        vim.fn.delete(db_dir, "rf")
+        gtags.update(false)
+        vim.notify("Gtags rebuilt for " .. vim.fn.getcwd(), vim.log.levels.INFO)
+      end, { desc = "Force rebuild gtags database for current project" })
     end,
   },
 }
