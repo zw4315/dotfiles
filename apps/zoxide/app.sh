@@ -33,12 +33,12 @@ app_install() {
 
 app_configure() {
   # 在 shell 配置中初始化 zoxide
-  # 同时支持 zsh 和 bash，各自独立注入
-  if [[ -f "$HOME/.zshrc" ]]; then
+  # 如果配置里已经存在（无论是否带条件判断），则跳过，避免重复
+  if [[ -f "$HOME/.zshrc" ]] && ! grep -q 'zoxide init zsh' "$HOME/.zshrc"; then
     append_if_missing 'eval "$(zoxide init zsh)"' "$HOME/.zshrc"
   fi
 
-  if [[ -f "$HOME/.bashrc" ]]; then
+  if [[ -f "$HOME/.bashrc" ]] && ! grep -q 'zoxide init bash' "$HOME/.bashrc"; then
     append_if_missing 'eval "$(zoxide init bash)"' "$HOME/.bashrc"
   fi
 }

@@ -127,3 +127,6 @@ fi
 
 # 简化 cd
 command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init bash)"
+
+# Pi
+export PATH="/home/edward/.local/share/pi-node/node-v22.22.3-linux-x64/bin:$PATH"
