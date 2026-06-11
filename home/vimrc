@@ -38,7 +38,14 @@ set foldenable
 
 " gtags 的问题定位
 " let g:gutentags_trace = 1
-" let g:gutentags_define_advanced_commands = 1
+let g:gutentags_define_advanced_commands = 1
+
+" Ensure gtags uses universal-ctags regardless of shell environment
+let $GTAGSLABEL = 'universal-ctags'
+let $GTAGSCONF = expand('~/.global/gtags.conf')
+
+" ctags fallback: include signature info for nicer display
+let g:gutentags_ctags_extra_args = ['--fields=+S']
 
 " 设置 cache 目录（可选）
 let g:gutentags_cache_dir = expand('~/.cache/tags')
@@ -56,7 +63,7 @@ if has('macunix')
 endif
 
 " config project root markers.
-let g:gutentags_project_root = ['.root']
+let g:gutentags_project_root = ['.git', '.root']
 
 " 不对 markdown/conf 等文件生成/更新 tags，避免 gtags-cscope 报错
 let g:gutentags_exclude_filetypes = ['markdown', 'conf']
