@@ -28,7 +28,7 @@ tree = true   # 树状目录浏览
 # 以下工具默认关闭。如果你有对应开发需求，请改为 true。
 [language]
 go     = false   # Go 语言
-node   = false   # Node.js via nvm
+node   = true    # Node.js via nvm (required by pyright LSP)
 python = false   # Python via uv
 rust   = false   # Rust via rustup
 
@@ -37,6 +37,7 @@ rust   = false   # Rust via rustup
 ctags        = true   # Universal Ctags 代码标签
 global       = true   # GNU Global 代码导航
 clang-format = true   # 代码格式化
+pyright      = true   # Python LSP 服务器
 
 # === 代理工具 ===
 [proxy]
